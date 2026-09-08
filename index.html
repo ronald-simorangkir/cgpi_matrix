@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matriks Bukti dan Kesiapan CGPI 2025 — MCI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root { --navy:#1F3864; --proses:#2E75B6; --hasil:#0E6E5C; --gold:#C99700; --teal:#0E6E5C;
+  --ink:#1A2438; --gray:#4A5875; --line:#C8D2E4; --none:#D5DCE8; --band:#F4F7FB; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Inter, Arial, sans-serif; color:var(--ink); background:#FFFFFF; padding:14px 16px 40px; }
+.rule { height:4px; background:var(--navy); position:relative; margin-bottom:6px; }
+.rule::after { content:''; position:absolute; left:0; top:0; width:150px; height:4px; background:var(--gold); }
+.kicker { font-size:10px; letter-spacing:3px; color:var(--gold); font-weight:600; }
+h1 { font-size:21px; color:var(--navy); font-weight:600; margin-top:2px; }
+.sub { font-size:12px; color:var(--gray); margin-top:2px; }
+.drop { margin-top:14px; border:2px dashed var(--line); border-radius:10px; padding:22px; text-align:center;
+  color:var(--gray); font-size:13px; cursor:pointer; transition:background .15s, border-color .15s; }
+.drop.hover { background:#EDF3FB; border-color:var(--proses); }
+.drop b { color:var(--navy); }
+.drop input { display:none; }
+.meta { font-size:11px; color:var(--gray); margin-top:6px; }
+.stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.card { border:1px solid var(--line); border-radius:10px; padding:10px 16px; min-width:130px; }
+.card .v { font-size:24px; font-weight:600; }
+.card .l { font-size:10.5px; color:var(--gray); letter-spacing:.4px; }
+.ctrl { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:14px; font-size:12px; }
+.chip { border:1px solid var(--line); border-radius:20px; padding:4px 12px; cursor:pointer; user-select:none; color:var(--gray); }
+.chip.on { color:#fff; border-color:transparent; }
+select { border:1px solid var(--line); border-radius:8px; padding:4px 8px; font-size:12px; color:var(--ink); }
+label.tg { display:flex; align-items:center; gap:5px; cursor:pointer; color:var(--gray); }
+.wrap { margin-top:14px; overflow:auto; border:1px solid var(--line); border-radius:10px; max-height:72vh; }
+table { border-collapse:separate; border-spacing:0; font-size:11px; }
+th, td { padding:0; }
+thead th { position:sticky; top:0; background:#fff; z-index:3; border-bottom:2px solid var(--navy); }
+th.gname { height:118px; vertical-align:bottom; }
+th.gname span { writing-mode:vertical-rl; transform:rotate(180deg); font-weight:400; color:#33405C;
+  font-size:10.5px; padding:6px 0 4px; display:inline-block; }
+th.gno div { margin:3px 2px 4px; border-radius:5px; font-size:10.5px; font-weight:600; color:var(--navy);
+  background:#EDF1F8; padding:2px 0; text-align:center; }
+th.gno.hub div { background:var(--gold); color:#fff; }
+tbody th { position:sticky; left:0; background:#fff; z-index:2; text-align:left; white-space:nowrap;
+  padding:0 10px 0 8px; border-right:2px solid var(--navy); }
+tbody tr:nth-child(odd) td { background:var(--band); }
+tbody tr.aspgap td, tbody tr.aspgap th { border-top:6px solid #fff; }
+.ino { font-weight:600; margin-right:7px; }
+.inm { color:#33405C; font-weight:400; }
+td.c { width:30px; height:24px; text-align:center; vertical-align:middle; border-right:1px solid #EDF1F7; }
+td.c div { margin:0 auto; border-radius:4px; cursor:pointer; transition:outline .1s; }
+td.c div.U { width:24px; height:16px; }
+td.c div.P { width:15px; height:10px; }
+td.c div:hover { outline:2px solid var(--navy); }
+td.c div.picflag { outline:2px solid #E24B4A; }
+td.c div.dim { opacity:.18; }
+td.rt { padding:0 10px; white-space:nowrap; font-size:10.5px; color:#33405C; background:#fff !important;
+  position:sticky; right:0; border-left:1px solid var(--line); z-index:2; }
+.bar { display:inline-block; width:64px; height:7px; background:#E7ECF4; border-radius:4px; vertical-align:middle; margin-right:6px; }
+.bar i { display:block; height:100%; border-radius:4px; }
+tfoot td { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line);
+  font-size:9.5px; color:var(--gray); text-align:center; padding:4px 0; z-index:1; }
+.legend { display:flex; flex-wrap:wrap; gap:16px; font-size:11px; color:#33405C; margin-top:10px; align-items:center; }
+.sw { display:inline-block; border-radius:3px; margin-right:5px; vertical-align:middle; }
+#panel { position:fixed; top:0; right:-420px; width:400px; max-width:92vw; height:100vh; background:#fff;
+  border-left:1px solid var(--line); box-shadow:-6px 0 24px rgba(31,56,100,.12); transition:right .2s; z-index:20;
+  display:flex; flex-direction:column; }
+#panel.open { right:0; }
+#panel .ph { background:var(--navy); color:#fff; padding:14px 16px; }
+#panel .ph .t { font-size:14px; font-weight:600; }
+#panel .ph .s { font-size:11px; color:#C9D6EA; margin-top:2px; }
+#panel .ph .x { position:absolute; top:10px; right:14px; cursor:pointer; font-size:18px; color:#C9D6EA; }
+#plist { overflow:auto; padding:12px 16px; }
+.doc { border-bottom:1px solid #EDF1F7; padding:8px 0; font-size:12px; }
+.doc .id { font-weight:600; color:var(--navy); margin-right:6px; }
+.doc .pic { color:var(--gray); font-size:11px; }
+.st { float:right; font-size:10px; font-weight:600; border-radius:10px; padding:2px 8px; }
+.st.ok { background:#E1F5EE; color:#085041; }
+.st.no { background:#FCEBEB; color:#791F1F; }
+#empty { display:none; }
+footer { margin-top:14px; font-size:10px; color:#6B7890; border-top:1px solid var(--line); padding-top:6px;
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+</style>
+</head>
+<body>
+<div class="rule"></div>
+<div class="kicker">PANITIA PERSIAPAN CGPI 2025 — PT MANDIRI CAPITAL INDONESIA</div>
+<h1>Matriks Bukti dan Kesiapan CGPI 2025</h1>
+<div class="sub">Pemetaan 24 indikator &times; 27 kelompok dokumen dengan status pengumpulan, dibaca langsung dari Excel tracking (sheet Master dan Matriks Tick)</div>
+
+<div class="drop" id="drop">
+  <b>Pilih atau seret file tracking Excel ke sini</b> (Daftar_Dokumen_Pendukung_CGPI_MCI_2025_v7_Tracking.xlsx atau versi lebih baru)
+  <div class="meta" id="meta">Belum ada file dimuat. Data terakhir yang tersimpan di browser akan tampil otomatis jika ada.</div>
+  <input type="file" id="file" accept=".xlsx,.xlsm">
+</div>
+
+<div id="app" style="display:none">
+  <div class="stats" id="stats"></div>
+  <div class="ctrl">
+    <span style="color:var(--gray)">Aspek:</span>
+    <span class="chip on" data-asp="ALL">Semua</span>
+    <span class="chip" data-asp="S">Struktur</span>
+    <span class="chip" data-asp="P">Proses</span>
+    <span class="chip" data-asp="H">Hasil</span>
+    <span style="color:var(--gray);margin-left:8px">PIC:</span>
+    <select id="pic"><option value="">Semua PIC</option></select>
+    <label class="tg"><input type="checkbox" id="gap"> Sorot hanya gap (belum lengkap)</label>
+  </div>
+  <div class="wrap"><table id="tbl"></table></div>
+  <div class="legend">
+    <span><span class="sw" style="width:22px;height:14px;background:#B9C4D8"></span>Sel besar: dokumen utama</span>
+    <span><span class="sw" style="width:14px;height:9px;background:#B9C4D8"></span>Sel kecil: penunjang</span>
+    <span><span class="sw" style="width:16px;height:11px;background:var(--teal)"></span>Lengkap terkumpul</span>
+    <span><span class="sw" style="width:16px;height:11px;background:var(--gold)"></span>Sebagian</span>
+    <span><span class="sw" style="width:16px;height:11px;background:var(--none)"></span>Belum ada</span>
+    <span><span class="sw" style="width:16px;height:11px;background:#fff;outline:2px solid #E24B4A"></span>Memuat dokumen tertunda milik PIC terpilih</span>
+    <span style="color:var(--gray)">Klik sel untuk rincian dokumen.</span>
+  </div>
+</div>
+<div id="empty"></div>
+
+<div id="panel">
+  <div class="ph" style="position:relative">
+    <div class="x" onclick="closePanel()">&#10005;</div>
+    <div class="t" id="pt"></div><div class="s" id="ps"></div>
+  </div>
+  <div id="plist"></div>
+</div>
+
+<footer>
+  <span>Sumber tunggal: Excel tracking CGPI v7 (Matriks Tick untuk pemetaan, Master untuk status). Seluruh pemrosesan terjadi di browser, tidak ada data yang dikirim keluar.</span>
+  <span>PT Mandiri Capital Indonesia — CGPI 2025</span>
+</footer>
+
+<script>
+"use strict";
+const NAVY="#1F3864", PROSES="#2E75B6", HASIL="#0E6E5C", GOLD="#C99700", TEAL="#0E6E5C", NONE="#D5DCE8";
+const asp = i => i.startsWith("4") ? "S" : i.startsWith("5") ? "P" : "H";
+const ASPC = { S:NAVY, P:PROSES, H:HASIL };
+let M = null;            // model hasil parse
+let fAsp = "ALL", fPic = "", fGap = false;
+
+const drop = document.getElementById("drop"), fin = document.getElementById("file");
+drop.addEventListener("click", () => fin.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("hover"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("hover"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("hover");
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+fin.addEventListener("change", () => { if (fin.files[0]) loadFile(fin.files[0]); });
+
+function loadFile(f) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const wb = XLSX.read(r.result, { type:"array" });
+      M = parse(wb, f.name, f.lastModified);
+      try { localStorage.setItem("cgpiMatrix", JSON.stringify(M)); } catch(e) {}
+      render();
+    } catch(err) {
+      document.getElementById("meta").textContent = "Gagal membaca file: " + err.message +
+        ". Pastikan file adalah tracking v7 dengan sheet Master dan Matriks Tick.";
+    }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+function parse(wb, fname, mtime) {
+  const need = ["Master", "Matriks Tick", "Pemetaan Indikator"];
+  for (const n of need) if (!wb.Sheets[n]) throw new Error("sheet '" + n + "' tidak ditemukan");
+  const rows = s => XLSX.utils.sheet_to_json(wb.Sheets[s], { header:1, defval:null });
+
+  const docs = {};                                  // id -> {nama, grup, judul, ok, pic}
+  for (const r of rows("Master").slice(1)) {
+    const id = r[0]; if (!id || typeof id !== "string" || !/^\d{2}\.\d{2}$/.test(id)) continue;
+    docs[id] = { nama:String(r[4]||""), grup:String(r[1]||id.slice(0,2)).padStart(2,"0"),
+      judul:String(r[2]||""), ok:String(r[7]||"").trim().toLowerCase()==="ya", pic:String(r[8]||"").trim() };
+  }
+  const indName = {};
+  for (const r of rows("Pemetaan Indikator").slice(1)) if (r[0]) indName[String(r[0])] = String(r[1]||"");
+
+  const mt = rows("Matriks Tick");
+  const hdr = mt[1];                                // baris 2: nomor indikator per kolom
+  const uCols = [], pCols = [];
+  for (let c = 2; c <= 25; c++) if (hdr[c]) uCols.push([c, String(hdr[c])]);
+  for (let c = 26; c <= 49; c++) if (hdr[c]) pCols.push([c, String(hdr[c])]);
+  if (uCols.length !== 24 || pCols.length !== 24) throw new Error("header Matriks Tick tidak lengkap");
+
+  const cells = {};                                 // "ind|grup" -> {jenis, docs:[id..]}
+  for (const r of mt.slice(2)) {
+    const id = r[0]; if (!id || !/^\d{2}\.\d{2}$/.test(String(id))) continue;
+    const g = String(id).slice(0,2);
+    const put = (ind, jenis) => {
+      const k = ind + "|" + g;
+      if (!cells[k]) cells[k] = { jenis, docs:[] };
+      if (jenis === "U") cells[k].jenis = "U";
+      cells[k].docs.push(String(id));
+    };
+    for (const [c, ind] of uCols) if (r[c] === "\u2713") put(ind, "U");
+    for (const [c, ind] of pCols) if (r[c] === "\u2713") put(ind, "P");
+  }
+  const order = uCols.map(x => x[1]);
+  const groups = [...new Set(Object.keys(docs).map(d => d.slice(0,2)))].sort();
+  const gname = {}; for (const id in docs) gname[docs[id].grup] = docs[id].judul;
+  return { fname, mtime, docs, indName, cells, order, groups, gname };
+}
+
+function shortG(s) { return (s||"").replace(/^Dokumentasi /,"").replace(/ Perseroan.*$/,"")
+  .replace(/^Rapat Umum Pemegang Saham.*$/,"RUPS").replace(/^Pengendalian Gratifikasi.*$/,"Anti-Fraud dan APU")
+  .replace(/^Perlindungan terhadap Saksi.*$/,"WBS").replace(/^Pengungkapan dan Keterbukaan.*$/,"Keterbukaan Informasi")
+  .replace(/^Pengendalian Internal.*$/,"Pengendalian Internal").replace(/^Pengelolaan Sumber Daya Manusia$/,"SDM")
+  .replace(/^Sistem Manajemen Keselamatan.*$/,"K3").replace(/^Pedoman Penyusunan dan Daftar.*$/,"Ketentuan Internal")
+  .replace(/^Tata Kelola Kreativitas.*$/,"Inovasi").replace(/ dan\/atau Jasa$/,"").slice(0,26); }
+
+function render() {
+  if (!M) return;
+  document.getElementById("app").style.display = "block";
+  const d = new Date(M.mtime);
+  document.getElementById("meta").innerHTML = "Dimuat: <b>" + M.fname + "</b> &middot; modifikasi file " +
+    d.toLocaleString("id-ID") + " &middot; klik untuk memuat versi lebih baru";
+
+  const st = { tot:0, ok:0 };
+  for (const id in M.docs) { st.tot++; if (M.docs[id].ok) st.ok++; }
+  let full=0, part=0, none=0;
+  for (const k in M.cells) {
+    const c = M.cells[k], n = c.docs.filter(x => M.docs[x] && M.docs[x].ok).length;
+    if (n === c.docs.length) full++; else if (n > 0) part++; else none++;
+  }
+  document.getElementById("stats").innerHTML =
+    card(Math.round(100*st.ok/st.tot) + "%", "dokumen terkumpul (" + st.ok + "/" + st.tot + ")", TEAL) +
+    card(full, "sel relasi lengkap", TEAL) + card(part, "sel sebagian", GOLD) +
+    card(none, "sel belum terisi", "#8A96AC") + card(Object.keys(M.cells).length, "total sel relasi", NAVY);
+
+  const pics = [...new Set(Object.values(M.docs).flatMap(x => x.pic.split(",").map(s => s.trim())).filter(Boolean))].sort();
+  const sel = document.getElementById("pic");
+  const cur = fPic;
+  sel.innerHTML = '<option value="">Semua PIC</option>' + pics.map(p =>
+    '<option' + (p===cur?" selected":"") + '>' + p + '</option>').join("");
+
+  const deg = {}; for (const k in M.cells) { const g = k.split("|")[1]; deg[g] = (deg[g]||0)+1; }
+
+  let h = "<thead><tr><th></th>";
+  for (const g of M.groups) h += '<th class="gname"><span>' + shortG(M.gname[g]) + "</span></th>";
+  h += '<th></th></tr><tr><th style="border-bottom:2px solid var(--navy)"></th>';
+  for (const g of M.groups) h += '<th class="gno' + ((deg[g]||0)>=7?" hub":"") + '"><div>' + g + "</div></th>";
+  h += '<th class="rt" style="border-bottom:2px solid var(--navy);font-weight:600;color:var(--navy)">Kesiapan indikator</th></tr></thead><tbody>';
+
+  let prevAsp = null;
+  for (const ind of M.order) {
+    if (fAsp !== "ALL" && asp(ind) !== fAsp) continue;
+    const gapRow = prevAsp && prevAsp !== asp(ind);
+    prevAsp = asp(ind);
+    let t=0, k=0;
+    const seen = new Set();
+    for (const g of M.groups) {
+      const c = M.cells[ind + "|" + g]; if (!c) continue;
+      for (const id of c.docs) if (!seen.has(id)) { seen.add(id); t++; if (M.docs[id].ok) k++; }
+    }
+    const pct = t ? k/t : 0, bc = pct===1?TEAL:(pct>0?GOLD:"#B9C4D8");
+    h += '<tr' + (gapRow?' class="aspgap"':'') + '><th><span class="ino" style="color:' + ASPC[asp(ind)] + '">' + ind +
+      '</span><span class="inm">' + (M.indName[ind]||"") + "</span></th>";
+    for (const g of M.groups) {
+      const key = ind + "|" + g, c = M.cells[key];
+      if (!c) { h += '<td class="c"></td>'; continue; }
+      const n = c.docs.filter(x => M.docs[x].ok).length;
+      const fill = n===c.docs.length ? TEAL : (n>0 ? GOLD : NONE);
+      const flag = fPic && c.docs.some(x => M.docs[x].pic.split(",").map(s=>s.trim()).includes(fPic) && !M.docs[x].ok);
+      const dim = fGap && n===c.docs.length;
+      h += '<td class="c"><div class="' + c.jenis + (flag?" picflag":"") + (dim?" dim":"") +
+        '" style="background:' + fill + '" onclick="openCell(\'' + key + '\')" title="' + ind + ' \u00D7 ' + g + '"></div></td>';
+    }
+    h += '<td class="rt"><span class="bar"><i style="width:' + Math.round(pct*100) + '%;background:' + bc +
+      '"></i></span>' + Math.round(pct*100) + "% (" + k + "/" + t + ")</td></tr>";
+  }
+  h += "</tbody><tfoot><tr><td style='text-align:left;padding-left:8px'>% terkumpul per kelompok</td>";
+  for (const g of M.groups) {
+    let t=0, k=0; for (const id in M.docs) if (M.docs[id].grup===g) { t++; if (M.docs[id].ok) k++; }
+    h += "<td>" + (t?Math.round(100*k/t):0) + "%</td>";
+  }
+  h += "<td></td></tr></tfoot>";
+  document.getElementById("tbl").innerHTML = h;
+}
+function card(v, l, c) { return '<div class="card"><div class="v" style="color:' + c + '">' + v +
+  '</div><div class="l">' + l + "</div></div>"; }
+
+window.openCell = key => {
+  const [ind, g] = key.split("|"), c = M.cells[key];
+  document.getElementById("pt").textContent = ind + " " + (M.indName[ind]||"") ;
+  document.getElementById("ps").textContent = "Kelompok " + g + " — " + (M.gname[g]||"") +
+    " · " + (c.jenis==="U"?"dokumen utama":"dokumen penunjang");
+  document.getElementById("plist").innerHTML = c.docs.map(id => {
+    const d = M.docs[id];
+    return '<div class="doc"><span class="st ' + (d.ok?"ok":"no") + '">' + (d.ok?"Terkumpul":"Belum") +
+      '</span><span class="id">' + id + '</span>' + d.nama +
+      '<div class="pic">PIC: ' + (d.pic||"-") + "</div></div>";
+  }).join("");
+  document.getElementById("panel").classList.add("open");
+};
+window.closePanel = () => document.getElementById("panel").classList.remove("open");
+
+document.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(x => { x.classList.remove("on"); x.style.background=""; });
+  ch.classList.add("on");
+  fAsp = ch.dataset.asp;
+  ch.style.background = fAsp==="ALL" ? NAVY : ASPC[fAsp];
+  render();
+}));
+document.querySelector('.chip[data-asp="ALL"]').style.background = NAVY;
+document.getElementById("pic").addEventListener("change", e => { fPic = e.target.value; render(); });
+document.getElementById("gap").addEventListener("change", e => { fGap = e.target.checked; render(); });
+
+try {
+  const saved = localStorage.getItem("cgpiMatrix");
+  if (saved) { M = JSON.parse(saved); render(); }
+} catch(e) {}
+</script>
+</body>
+</html>
