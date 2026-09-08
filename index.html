@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Matriks Bukti dan Kesiapan CGPI 2025 — MCI</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msal-browser/3.28.1/msal-browser.min.js"></script>
 <style>
 :root { --navy:#1F3864; --proses:#2E75B6; --hasil:#0E6E5C; --gold:#C99700; --teal:#0E6E5C;
   --ink:#1A2438; --gray:#4A5875; --line:#C8D2E4; --none:#D5DCE8; --band:#F4F7FB; }
@@ -91,6 +92,15 @@ footer { margin-top:14px; font-size:10px; color:#6B7890; border-top:1px solid va
   <b>Pilih atau seret file tracking Excel ke sini</b> (Daftar_Dokumen_Pendukung_CGPI_MCI_2025_v7_Tracking.xlsx atau versi lebih baru)
   <div class="meta" id="meta">Belum ada file dimuat. Data terakhir yang tersimpan di browser akan tampil otomatis jika ada.</div>
   <input type="file" id="file" accept=".xlsx,.xlsm">
+</div>
+
+<div id="syncbar" style="display:none; margin-top:10px; border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-size:12px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+  <b style="color:var(--navy)">Sinkron otomatis SharePoint</b>
+  <button id="btnLogin" style="border:none;background:var(--navy);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px">Masuk akun Microsoft</button>
+  <span id="who" style="color:var(--gray)"></span>
+  <input id="shareLink" placeholder="Tempel tautan berbagi file Excel dari SharePoint/Teams" style="flex:1;min-width:260px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px">
+  <button id="btnSync" style="border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px">Sinkronkan sekarang</button>
+  <span id="syncst" style="color:var(--gray)"></span>
 </div>
 
 <div id="app" style="display:none">
@@ -311,6 +321,88 @@ try {
   const saved = localStorage.getItem("cgpiMatrix");
   if (saved) { M = JSON.parse(saved); render(); }
 } catch(e) {}
+
+/* ================= SINKRON OTOMATIS VIA MICROSOFT GRAPH =================
+   Isi dua konstanta di bawah setelah registrasi App di Entra ID tenant MCI,
+   lalu deploy ulang. Selama masih placeholder, bar sinkron tidak muncul dan
+   halaman berjalan dalam mode pilih/seret file seperti biasa. */
+const GRAPH = {
+  clientId:  "423fdc02-e076-49c9-9e09-51d417b12401",     // Application (client) ID dari App registration
+  tenantId:  "ecf5a6b8-f78b-4874-9e7a-d5763e78ccb7",     // Directory (tenant) ID MCI
+  shareLink: ""                     // opsional: tautan berbagi Excel, bisa juga diisi lewat UI
+};
+const SYNC_MS = 5 * 60 * 1000;      // interval sinkron ulang: 5 menit
+let msalApp = null, account = null, lastMod = null, timer = null;
+
+const $ = id => document.getElementById(id);
+if (GRAPH.clientId && !GRAPH.clientId.startsWith("GANTI")) {
+  $("syncbar").style.display = "flex";
+  $("shareLink").value = (function(){ try { return localStorage.getItem("cgpiShareLink") || GRAPH.shareLink; } catch(e){ return GRAPH.shareLink; } })();
+  msalApp = new msal.PublicClientApplication({
+    auth: { clientId: GRAPH.clientId,
+            authority: "https://login.microsoftonline.com/" + GRAPH.tenantId,
+            redirectUri: window.location.origin + window.location.pathname },
+    cache: { cacheLocation: "localStorage" }
+  });
+  msalApp.initialize().then(() => {
+    const accs = msalApp.getAllAccounts();
+    if (accs.length) { account = accs[0]; afterLogin(); }
+  });
+  $("btnLogin").addEventListener("click", async () => {
+    try {
+      const res = await msalApp.loginPopup({ scopes: ["Files.Read.All"] });
+      account = res.account; afterLogin(); syncNow(true);
+    } catch(e) { $("syncst").textContent = "Login gagal: " + (e.errorCode || e.message); }
+  });
+  $("btnSync").addEventListener("click", () => syncNow(true));
+  $("shareLink").addEventListener("change", () => {
+    try { localStorage.setItem("cgpiShareLink", $("shareLink").value.trim()); } catch(e) {}
+  });
+}
+function afterLogin() {
+  $("who").textContent = "Masuk sebagai " + (account.name || account.username);
+  $("btnLogin").textContent = "Ganti akun";
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => syncNow(false), SYNC_MS);
+  if ($("shareLink").value.trim()) syncNow(true);
+}
+async function token() {
+  const req = { scopes: ["Files.Read.All"], account };
+  try { return (await msalApp.acquireTokenSilent(req)).accessToken; }
+  catch(e) { return (await msalApp.acquireTokenPopup(req)).accessToken; }
+}
+function shareId(link) {
+  const b = btoa(unescape(encodeURIComponent(link)))
+    .replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-");
+  return "u!" + b;
+}
+async function syncNow(force) {
+  if (!account) return;
+  const link = $("shareLink").value.trim();
+  if (!link) { $("syncst").textContent = "Tempel tautan berbagi file Excel terlebih dahulu."; return; }
+  try {
+    $("syncst").textContent = "Memeriksa versi terbaru\u2026";
+    const t = await token();
+    const base = "https://graph.microsoft.com/v1.0/shares/" + shareId(link) + "/driveItem";
+    const meta = await (await fetch(base + "?select=name,lastModifiedDateTime",
+      { headers: { Authorization: "Bearer " + t } })).json();
+    if (meta.error) throw new Error(meta.error.message);
+    if (!force && lastMod === meta.lastModifiedDateTime) {
+      $("syncst").textContent = "Tidak ada perubahan \u00b7 dicek " + new Date().toLocaleTimeString("id-ID"); return;
+    }
+    const buf = await (await fetch(base + "/content", { headers: { Authorization: "Bearer " + t } })).arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    M = parse(wb, meta.name, Date.parse(meta.lastModifiedDateTime));
+    try { localStorage.setItem("cgpiMatrix", JSON.stringify(M)); } catch(e) {}
+    lastMod = meta.lastModifiedDateTime;
+    render();
+    $("syncst").textContent = "Tersinkron \u00b7 versi file " +
+      new Date(meta.lastModifiedDateTime).toLocaleString("id-ID") +
+      " \u00b7 sinkron ulang otomatis tiap 5 menit";
+  } catch(e) {
+    $("syncst").textContent = "Sinkron gagal: " + e.message;
+  }
+}
 </script>
 </body>
 </html>
