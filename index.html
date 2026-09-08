@@ -273,35 +273,70 @@ function loadFile(f) {
 }
 
 function parse(wb, fname, mtime) {
-  const need = ["Master", "Matriks Tick", "Pemetaan Indikator"];
-  for (const n of need) if (!wb.Sheets[n]) throw new Error("sheet '" + n + "' tidak ditemukan");
+  const need = ["Matriks Tick", "Pemetaan Indikator"];
+  for (const n of need) if (!wb.Sheets[n]) throw new Error("sheet '" + n + "' tidak ditemukan. Sheet yang ada: " + wb.SheetNames.slice(0,8).join(", "));
   const rows = s => XLSX.utils.sheet_to_json(wb.Sheets[s], { header:1, defval:null });
 
-  const docs = {};                                  // id -> {nama, grup, judul, ok, pic}
-  for (const r of rows("Master").slice(1)) {
-    const id = r[0]; if (!id || typeof id !== "string" || !/^\d{2}\.\d{2}$/.test(id)) continue;
-    docs[id] = { nama:String(r[4]||""), grup:String(r[1]||id.slice(0,2)).padStart(2,"0"),
-      judul:String(r[2]||""), ok:String(r[7]||"").trim().toLowerCase()==="ya", pic:String(r[8]||"").trim() };
+  // Lapis 1: Master (cepat, butuh nilai tembolok formula)
+  const docs = {};
+  if (wb.Sheets["Master"]) {
+    for (const r of rows("Master").slice(1)) {
+      const id = r[0]; if (!id || typeof id !== "string" || !/^\d{2}\.\d{2}$/.test(id)) continue;
+      docs[id] = { nama:String(r[4]||""), grup:String(r[1]||id.slice(0,2)).padStart(2,"0"),
+        judul:String(r[2]||""), ok:String(r[7]||"").trim().toLowerCase()==="ya", pic:String(r[8]||"").trim() };
+    }
   }
+  let viaMaster = true;
+  // Lapis 2: baca langsung 27 tab DP (nilai literal, tahan tembolok hilang)
+  if (Object.keys(docs).length < 10) {
+    viaMaster = false;
+    for (const sn of wb.SheetNames) {
+      const m = sn.match(/^DP (\d{2})$/); if (!m) continue;
+      const g = m[1]; const rr = rows(sn);
+      const judul = String((rr[0]||[])[0]||"").replace(/^Dokumen Pendukung\s*\d+\s*[\u2013-]\s*/,"").trim();
+      for (const r of rr.slice(4)) {
+        const no = parseInt(String(r[0]||"").trim(), 10);
+        if (!Number.isFinite(no) || no < 1 || no > 99) continue;
+        const id = g + "." + String(no).padStart(2,"0");
+        docs[id] = { nama:String(r[1]||"(tertaut Doc Baru)"), grup:g, judul,
+          ok:String(r[4]||"").trim().toLowerCase()==="ya", pic:String(r[5]||"").trim() };
+      }
+    }
+  }
+  if (Object.keys(docs).length === 0)
+    throw new Error("tidak ada baris dokumen terbaca; pastikan file adalah tracking v7 dengan tab DP 01 sampai DP 27");
+
   const indName = {};
   for (const r of rows("Pemetaan Indikator").slice(1)) if (r[0]) indName[String(r[0])] = String(r[1]||"");
 
   const mt = rows("Matriks Tick");
-  const hdr = mt[1];                                // baris 2: nomor indikator per kolom
+  const hdr = mt[1];
   const uCols = [], pCols = [];
   for (let c = 2; c <= 25; c++) if (hdr[c]) uCols.push([c, String(hdr[c])]);
   for (let c = 26; c <= 49; c++) if (hdr[c]) pCols.push([c, String(hdr[c])]);
   if (uCols.length !== 24 || pCols.length !== 24) throw new Error("header Matriks Tick tidak lengkap");
 
-  const cells = {};                                 // "ind|grup" -> {jenis, docs:[id..]}
+  // id per baris Matriks Tick: pakai nilai sel jika ada, jika kosong (tembolok hilang)
+  // pakai urutan posisi terhadap daftar dokumen terurut (matriks dibangun terurut)
+  const sortedIds = Object.keys(docs).sort();
+  const cells = {};
+  let rowIdx = 0;
   for (const r of mt.slice(2)) {
-    const id = r[0]; if (!id || !/^\d{2}\.\d{2}$/.test(String(id))) continue;
-    const g = String(id).slice(0,2);
+    const raw = r[0];
+    let id = (raw && /^\d{2}\.\d{2}$/.test(String(raw))) ? String(raw) : null;
+    if (!id) {
+      const hasTick = r.slice(2, 50).some(v => v === "\u2713");
+      if (!hasTick && raw == null) continue;
+      if (rowIdx < sortedIds.length) id = sortedIds[rowIdx];
+    }
+    if (!id) continue;
+    rowIdx++;
+    const g = id.slice(0,2);
     const put = (ind, jenis) => {
       const k = ind + "|" + g;
       if (!cells[k]) cells[k] = { jenis, docs:[] };
       if (jenis === "U") cells[k].jenis = "U";
-      cells[k].docs.push(String(id));
+      cells[k].docs.push(id);
     };
     for (const [c, ind] of uCols) if (r[c] === "\u2713") put(ind, "U");
     for (const [c, ind] of pCols) if (r[c] === "\u2713") put(ind, "P");
@@ -309,7 +344,7 @@ function parse(wb, fname, mtime) {
   const order = uCols.map(x => x[1]);
   const groups = [...new Set(Object.keys(docs).map(d => d.slice(0,2)))].sort();
   const gname = {}; for (const id in docs) gname[docs[id].grup] = docs[id].judul;
-  return { fname, mtime, docs, indName, cells, order, groups, gname };
+  return { fname, mtime, docs, indName, cells, order, groups, gname, viaMaster };
 }
 
 function shortG(s) { return (s||"").replace(/^Dokumentasi /,"").replace(/ Perseroan.*$/,"")
@@ -548,7 +583,7 @@ async function syncNow(force) {
     try { localStorage.setItem("cgpiMatrix", JSON.stringify(M)); } catch(e) {}
     lastMod = meta.lastModifiedDateTime;
     render();
-    $("syncst").textContent = "Tersinkron \u00b7 versi file " +
+    $("syncst").textContent = "Tersinkron \u00b7 " + Object.keys(M.docs).length + " dokumen (" + (M.viaMaster ? "via Master" : "via tab DP") + ") \u00b7 versi file " +
       new Date(meta.lastModifiedDateTime).toLocaleString("id-ID") +
       " \u00b7 sinkron ulang otomatis tiap 5 menit";
   } catch(e) {
