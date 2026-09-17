@@ -308,7 +308,7 @@
       <div class="panel">
         <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Skor Rata-rata per Aspek (skala 0–100)</h3>
         <div class="chart-box"><canvas id="chart-aspect-avg"></canvas></div>
-        <div class="note">Rata-rata jawaban tiap indikator per responden, dikonversi dari skala 0–10 ke skala 0–100.</div>
+        <div class="note">Rata-rata jawaban tiap indikator per responden, skala 0–100.</div>
       </div>
       <div id="aspect-detail-container" style="margin-top:16px; display:flex; flex-direction:column; gap:16px;"></div>
     </section>
@@ -854,18 +854,18 @@ function reasonTally(flaggedList){
 
 
 /* ================= GCG SELF-ASSESSMENT SCORING ================= */
-let outOfRangeCount = 0; // nilai mentah di luar 0-10 pada kolom skor GCG, dikecualikan dari rata-rata
+let outOfRangeCount = 0; // nilai mentah di luar 0-100 pada kolom skor GCG, dikecualikan dari rata-rata
 function toScore(val){
   if(val===null || val===undefined || val==='') return null;
   const n = parseFloat(val);
   if(isNaN(n)) return null;
-  if(n < 0 || n > 10){ outOfRangeCount++; return null; }
+  if(n < 0 || n > 100){ outOfRangeCount++; return null; }
   return n;
 }
 function computeAspectStats(aspect){
   // No "gate" column exists in this List (the "sangat baik" vs "detail" choice
   // isn't persisted), so every respondent's aspect score is a plain average of
-  // whichever of this aspect's 0-10 indicators they answered, scaled to 0-100.
+  // whichever of this aspect's 0-100 indicators they answered.
   const respondentScores = [];
   for(const it of items){
     let sum = 0, n = 0;
@@ -874,7 +874,7 @@ function computeAspectStats(aspect){
       if(s===null) continue;
       sum += s; n++;
     }
-    if(n > 0) respondentScores.push((sum/n) * 10); // 0-10 -> 0-100
+    if(n > 0) respondentScores.push(sum/n);
   }
   const aspectAvg = respondentScores.length
     ? respondentScores.reduce((a,b)=>a+b,0)/respondentScores.length
@@ -1009,7 +1009,7 @@ function renderAspectAnalytics(){
   if(outOfRangeCount > 0){
     document.getElementById('gcg-range-warning').style.display = 'block';
     document.getElementById('gcg-range-warning').textContent =
-      `${outOfRangeCount} nilai pada kolom skor GCG berada di luar rentang 0–10 yang wajar dan dikecualikan dari perhitungan di atas. Ini indikasi kolom bernomor mungkin belum sepenuhnya sesuai urutan asli, atau ada isian data yang tidak wajar. Buka "Diagnostik nilai mentah" di atas untuk detailnya.`;
+      `${outOfRangeCount} nilai pada kolom skor GCG berada di luar rentang 0–100 yang wajar dan dikecualikan dari perhitungan di atas. Ini indikasi kolom bernomor mungkin belum sepenuhnya sesuai urutan asli, atau ada isian data yang tidak wajar. Buka "Diagnostik nilai mentah" di atas untuk detailnya.`;
     document.getElementById('gcg-raw-diag').open = true;
   }else{
     document.getElementById('gcg-range-warning').style.display = 'none';
@@ -1060,7 +1060,7 @@ function renderAspectAnalytics(){
        <div class="aspect-stats">Skor aspek (skala 0–100): <b>${avgTxt} / 100</b> &nbsp;·&nbsp;
        ${s.answered} dari ${totalRespondents} responden menjawab aspek ini</div>
        <div class="chart-box" style="height:${Math.max(180, s.itemStats.length*24)}px;"><canvas id="${canvasId}"></canvas></div>
-       <div class="note">Rincian per indikator di atas dalam skala 0–10, untuk melihat indikator mana yang paling lemah.</div>`;
+       <div class="note">Rincian per indikator di atas dalam skala 0–100, untuk melihat indikator mana yang paling lemah.</div>`;
     container.appendChild(panel);
 
     const sorted = s.itemStats.slice().sort((a,b) => (a.avg===null?99:a.avg) - (b.avg===null?99:b.avg));
@@ -1075,7 +1075,7 @@ function renderAspectAnalytics(){
       options:{
         indexAxis:'y',
         plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel, font:{ size:9.5 } } },
-        scales:{ x:{ min:0, max:10, ticks:{ font:{ size:10.5 } } }, y:{ ticks:{ font:{ size:10.5 } } } },
+        scales:{ x:{ min:0, max:100, ticks:{ font:{ size:10.5 } } }, y:{ ticks:{ font:{ size:10.5 } } } },
         responsive:true, maintainAspectRatio:false
       }
     });
