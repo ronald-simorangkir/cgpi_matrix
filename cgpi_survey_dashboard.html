@@ -482,6 +482,7 @@ const msalInstance = new msal.PublicClientApplication({
   },
   cache:{ cacheLocation:'sessionStorage', storeAuthStateInCookie:true }
 });
+const msalInitPromise = msalInstance.initialize();
 
 /* ================= UI HELPERS ================= */
 function showStatus(msg, isErr, raw){
@@ -501,6 +502,7 @@ function setSync(state, text){
 
 /* ================= AUTH ================= */
 async function ensureToken(){
+  await msalInitPromise;
   const accounts = msalInstance.getAllAccounts();
   if(accounts.length){ account = accounts[0]; }
   if(account){
