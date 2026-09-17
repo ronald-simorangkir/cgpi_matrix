@@ -511,37 +511,54 @@ function setSync(state, text){
   document.getElementById('sync-text').textContent = text;
 }
 
-/* ================= AUTH ================= */
-async function ensureToken(){
-  await msalInitPromise;
-  const accounts = msalInstance.getAllAccounts();
-  if(accounts.length){ account = accounts[0]; }
-  if(account){
-    try{
-      const r = await msalInstance.acquireTokenSilent({ scopes: CONFIG.scopes, account });
-      return r.accessToken;
-    }catch(e){ /* fall through to interactive */ }
-  }
-  const r = await msalInstance.loginPopup({ scopes: CONFIG.scopes });
-  account = r.account;
-  const r2 = await msalInstance.acquireTokenSilent({ scopes: CONFIG.scopes, account });
-  return r2.accessToken;
+/* ================= AUTH =================
+   Uses loginRedirect, not loginPopup: a Teams "Website" tab runs this page
+   inside an iframe, and Teams blocks the separate popup window that
+   loginPopup relies on. Redirect navigates the tab itself to Microsoft's
+   sign-in page and back, which works fine inside the Teams iframe and
+   needs no popup at all. */
+function onLoggedIn(){
+  document.getElementById('auth-controls').innerHTML =
+    `<span style="font-weight:600;color:var(--navy)">${(account && account.name) || 'Masuk'}</span>`;
+  document.getElementById('btn-refresh').style.display = 'inline-block';
+  runLoad();
+  setInterval(refreshData, CONFIG.autoRefreshMs);
 }
 
-document.getElementById('btn-login').addEventListener('click', async () => {
+async function tryAutoLogin(){
+  await msalInitPromise;
   try{
-    document.getElementById('btn-login').textContent = 'Masuk…';
-    graphToken = await ensureToken();
-    document.getElementById('auth-controls').innerHTML =
-      `<span style="font-weight:600;color:var(--navy)">${(account && account.name) || 'Masuk'}</span>`;
-    document.getElementById('btn-refresh').style.display = 'inline-block';
-    await runLoad();
-    setInterval(refreshData, CONFIG.autoRefreshMs);
+    const redirectResult = await msalInstance.handleRedirectPromise();
+    if(redirectResult && redirectResult.account){
+      account = redirectResult.account;
+      graphToken = redirectResult.accessToken;
+      onLoggedIn();
+      return;
+    }
   }catch(e){
-    showStatus('Gagal masuk dengan akun Microsoft. Coba lagi, atau periksa apakah pop-up diblokir browser.', true, String(e));
+    showStatus('Gagal memproses hasil masuk dari Microsoft.', true, String(e));
+    return;
   }
+  const accounts = msalInstance.getAllAccounts();
+  if(accounts.length){
+    account = accounts[0];
+    try{
+      const r = await msalInstance.acquireTokenSilent({ scopes: CONFIG.scopes, account });
+      graphToken = r.accessToken;
+      onLoggedIn();
+      return;
+    }catch(e){ /* not signed in yet; wait for the button click */ }
+  }
+}
+
+document.getElementById('btn-login').addEventListener('click', () => {
+  document.getElementById('btn-login').textContent = 'Mengarahkan ke Microsoft…';
+  msalInstance.loginRedirect({ scopes: CONFIG.scopes }).catch(e => {
+    showStatus('Gagal memulai proses masuk dengan akun Microsoft.', true, String(e));
+  });
 });
 document.getElementById('btn-refresh').addEventListener('click', refreshData);
+tryAutoLogin();
 
 /* ================= GRAPH ================= */
 async function graphGet(url){
