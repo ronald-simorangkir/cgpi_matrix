@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="./msal-browser.min.js"></script>
 <script src="./chart.umd.min.js"></script>
+<script src="./chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     --navy:#0B1F3A;
@@ -221,7 +222,7 @@
       <div class="grid-3">
         <div class="panel">
           <div class="chart-box"><canvas id="chart-internal-eksternal"></canvas></div>
-          <div class="note">Internal MCI (pegawai, Direksi, Dewan Komisaris) vs pihak eksternal ekosistem</div>
+          <div class="note">Kategori responden berdasarkan pihak yang diwakili</div>
         </div>
         <div class="panel">
           <div class="chart-box"><canvas id="chart-gender"></canvas></div>
@@ -232,14 +233,14 @@
       </div>
     </section>
     <section>
-      <h2 class="section-title">Kategori Pihak Eksternal</h2>
+      <h2 class="section-title">Pangkat/Golongan dan Asal Instansi</h2>
       <div class="grid-2">
         <div class="panel">
           <div class="chart-box"><canvas id="chart-eksternal-kategori"></canvas></div>
         </div>
         <div class="panel">
           <div id="tbl-asal-instansi"></div>
-          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat (pihak eksternal)</div>
+          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat</div>
         </div>
       </div>
     </section>
@@ -293,6 +294,7 @@
           <div class="lbl">Aspek dengan skor rata-rata terendah</div>
         </div>
       </div>
+      <div id="gcg-range-warning" style="display:none; background:#FBEFE9; border:1px solid var(--danger); color:var(--danger); padding:10px 14px; font-size:12.5px; margin-bottom:14px;"></div>
       <div class="panel" style="margin-bottom:16px;">
         <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Cakupan Jawaban dan Skor per Aspek</h3>
         <div id="tbl-detail-summary"></div>
@@ -336,6 +338,19 @@ if(typeof Chart === 'undefined'){
   showBootError('Library Chart.js (chart.umd.min.js) gagal dimuat. Pastikan file tersebut ter-upload di folder yang sama dengan halaman ini di repo GitHub, dengan nama persis "chart.umd.min.js".');
   return;
 }
+if(typeof ChartDataLabels === 'undefined'){
+  showBootError('Library chartjs-plugin-datalabels.min.js gagal dimuat. Pastikan file tersebut ter-upload di folder yang sama dengan halaman ini di repo GitHub.');
+  return;
+}
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', {
+  color: '#0B1F3A',
+  font: { family: 'Inter', size: 10, weight: '600' },
+  anchor: 'end',
+  align: 'end',
+  offset: 2,
+  clamp: true
+});
 window.addEventListener('error', function(e){
   showBootError('Terjadi error JavaScript yang tidak tertangani: ' + (e.message||'tidak diketahui'), (e.filename||'') + ':' + (e.lineno||''));
 });
@@ -791,8 +806,8 @@ function computeQualityFlags(){
       if(!isValidEmailFormat(emailVal)) reasons.push('Format email tidak valid');
     }
     if(isSuspiciousText(nama)) reasons.push('Isian nama tidak wajar');
-    if(isExternal(it) && isSuspiciousText(asal)) reasons.push('Isian asal perusahaan/instansi tidak wajar');
-    if(isInternal(it) && isSuspiciousText(divisi)) reasons.push('Isian bagian/divisi tidak wajar');
+    if(asal && isSuspiciousText(asal)) reasons.push('Isian asal perusahaan/instansi tidak wajar');
+    if(divisi && isSuspiciousText(divisi)) reasons.push('Isian bagian/divisi tidak wajar');
     if(reasons.length){
       flagged.push({
         nama: nama || '(tanpa nama)',
@@ -810,20 +825,16 @@ function reasonTally(flaggedList){
   return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 }
 
-function isInternal(it){
-  const v = raw(it,'kriteria');
-  return v && v.toLowerCase().startsWith('internal');
-}
-function isExternal(it){
-  const v = raw(it,'kriteria');
-  return v && v.toLowerCase().startsWith('eksternal');
-}
+
 
 /* ================= GCG SELF-ASSESSMENT SCORING ================= */
+let outOfRangeCount = 0; // nilai mentah di luar 0-10 pada kolom skor GCG, dikecualikan dari rata-rata
 function toScore(val){
   if(val===null || val===undefined || val==='') return null;
   const n = parseFloat(val);
-  return isNaN(n) ? null : n;
+  if(isNaN(n)) return null;
+  if(n < 0 || n > 10){ outOfRangeCount++; return null; }
+  return n;
 }
 function computeAspectStats(aspect){
   // No "gate" column exists in this List (the "sangat baik" vs "detail" choice
@@ -859,6 +870,10 @@ function computeAspectStats(aspect){
 const PALETTE = ['#0B1F3A','#B8933E','#2F6F63','#8C9AAE','#AE4430','#6B5B95','#C9A227','#4A6B8A'];
 function destroyIf(key){ if(charts[key]){ charts[key].destroy(); delete charts[key]; } }
 
+function fmtLabel(v){
+  if(v===null || v===undefined) return '';
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
 function barChart(canvasId, key, entries, horizontal){
   destroyIf(key);
   const ctx = document.getElementById(canvasId).getContext('2d');
@@ -868,7 +883,7 @@ function barChart(canvasId, key, entries, horizontal){
       datasets:[{ data: entries.map(e=>e[1]), backgroundColor: PALETTE[0], borderRadius:2, maxBarThickness:28 }]},
     options:{
       indexAxis: horizontal ? 'y' : 'x',
-      plugins:{ legend:{display:false} },
+      plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel } },
       scales:{
         x:{ grid:{ display: horizontal }, ticks:{ font:{ family:'Inter', size:11 } } },
         y:{ grid:{ display: !horizontal }, ticks:{ font:{ family:'Inter', size:11 } } }
@@ -885,7 +900,10 @@ function doughnutChart(canvasId, key, entries){
     data:{ labels: entries.map(e=>e[0]),
       datasets:[{ data: entries.map(e=>e[1]), backgroundColor: PALETTE, borderWidth:1, borderColor:'#fff' }]},
     options:{
-      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } } },
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } },
+        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{ family:'Inter', size:11, weight:'700' }, formatter: fmtLabel }
+      },
       responsive:true, maintainAspectRatio:false, cutout:'62%'
     }
   });
@@ -921,6 +939,7 @@ function renderFlaggedTable(containerId, flaggedList){
 }
 
 function renderAspectAnalytics(){
+  outOfRangeCount = 0;
   const stats = ASPECTS.map(computeAspectStats);
 
   const withScore = stats.filter(s => s.aspectAvg!==null);
@@ -935,11 +954,26 @@ function renderAspectAnalytics(){
   const lowest = withScore.slice().sort((a,b)=>a.aspectAvg-b.aspectAvg)[0];
   document.getElementById('m-aspect-lowest').textContent = lowest ? lowest.name.split(',')[0] : '—';
 
-  // Ringkasan cakupan jawaban per aspek
-  let dvHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Responden menjawab</th><th style="text-align:right">Skor rata-rata</th></tr></thead><tbody>';
+  if(outOfRangeCount > 0){
+    document.getElementById('gcg-range-warning').style.display = 'block';
+    document.getElementById('gcg-range-warning').textContent =
+      `${outOfRangeCount} nilai pada kolom skor GCG berada di luar rentang 0–10 yang wajar dan dikecualikan dari perhitungan di atas. Ini indikasi kolom bernomor mungkin belum sepenuhnya sesuai urutan asli, atau ada isian data yang tidak wajar.`;
+  }else{
+    document.getElementById('gcg-range-warning').style.display = 'none';
+  }
+
+  // Cakupan jawaban per aspek. "Mengisi detail" = responden dengan jawaban pada indikator
+  // aspek ini; "Tidak mengisi rincian" dihitung dari selisih terhadap total responden
+  // (perkiraan, karena pilihan "sangat baik tanpa detail" itu sendiri tidak tersimpan
+  // sebagai data terpisah di List ini).
+  let dvHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Mengisi detail</th><th style="text-align:right">Tidak mengisi rincian (perkiraan)</th><th style="text-align:right">Skor rata-rata</th></tr></thead><tbody>';
   stats.forEach(s => {
+    const notAnswered = totalRespondents - s.answered;
     const scoreTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
-    dvHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered} / ${totalRespondents}</td>` +
+    const detailPct = totalRespondents ? Math.round(s.answered/totalRespondents*100) : 0;
+    const notPct = totalRespondents ? Math.round(notAnswered/totalRespondents*100) : 0;
+    dvHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered} (${detailPct}%)</td>` +
+      `<td class="n">${notAnswered} (${notPct}%)</td>` +
       `<td class="n">${scoreTxt} / 100</td></tr>`;
   });
   dvHtml += '</tbody></table>';
@@ -955,7 +989,7 @@ function renderAspectAnalytics(){
     },
     options:{
       indexAxis:'y',
-      plugins:{ legend:{display:false} },
+      plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel } },
       scales:{ x:{ min:0, max:100, ticks:{ font:{ size:11 } } }, y:{ ticks:{ font:{ size:11.5 } } } },
       responsive:true, maintainAspectRatio:false
     }
@@ -987,7 +1021,7 @@ function renderAspectAnalytics(){
       },
       options:{
         indexAxis:'y',
-        plugins:{ legend:{display:false} },
+        plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel, font:{ size:9.5 } } },
         scales:{ x:{ min:0, max:10, ticks:{ font:{ size:10.5 } } }, y:{ ticks:{ font:{ size:10.5 } } } },
         responsive:true, maintainAspectRatio:false
       }
@@ -1038,8 +1072,10 @@ function render(){
     data:{
       labels: days,
       datasets:[
-        { label:'Responden kumulatif', data: cumSeries, borderColor: PALETTE[0], backgroundColor:'transparent', tension:0.15, pointRadius:2 },
-        { label:'Target (186)', data: days.map(()=>CONFIG.targetRespondents), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0 }
+        { label:'Responden kumulatif', data: cumSeries, borderColor: PALETTE[0], backgroundColor:'transparent', tension:0.15, pointRadius:2,
+          datalabels:{ display: (c) => c.dataIndex === c.dataset.data.length - 1, formatter: fmtLabel, align:'top' } },
+        { label:'Target (186)', data: days.map(()=>CONFIG.targetRespondents), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0,
+          datalabels:{ display:false } }
       ]
     },
     options:{
@@ -1051,13 +1087,12 @@ function render(){
 
   renderAspectAnalytics();
 
-  doughnutChart('chart-internal-eksternal', 'ie',
-    [['Internal MCI', items.filter(isInternal).length], ['Eksternal', items.filter(isExternal).length]]);
+  doughnutChart('chart-internal-eksternal', 'ie', tally('peran_responden', {top:6}));
   doughnutChart('chart-gender', 'gender', tally('gender', {top:6}));
   barChart('chart-age', 'age', tallyOrdered('age', FIELD_DEFS.find(f=>f.id==='age').order));
 
-  barChart('chart-eksternal-kategori', 'ekat', tally('eksternal_kat', {top:8, filter:isExternal}), true);
-  tableFromEntries('tbl-asal-instansi', tally('asal_instansi', {top:10, filter:isExternal}), ['Perusahaan/Instansi','Responden']);
+  barChart('chart-eksternal-kategori', 'ekat', tally('pangkat_golongan', {top:8}), true);
+  tableFromEntries('tbl-asal-instansi', tally('asal_instansi', {top:10}), ['Perusahaan/Instansi','Responden']);
 
   barChart('chart-pendidikan', 'pend', tallyOrdered('pendidikan', FIELD_DEFS.find(f=>f.id==='pendidikan').order), true);
   barChart('chart-bidang', 'bidang', tally('bidang', {top:7}), true);
@@ -1066,7 +1101,7 @@ function render(){
   barChart('chart-lama-menjabat', 'lm', tallyOrdered('lama_menjabat', FIELD_DEFS.find(f=>f.id==='lama_menjabat').order));
   doughnutChart('chart-lokasi', 'lokasi', tally('lokasi', {top:4}));
 
-  const divisi = tally('divisi', {top:999, groupRest:false, filter:isInternal}).sort((a,b)=>a[1]-b[1]);
+  const divisi = tally('divisi', {top:999, groupRest:false}).sort((a,b)=>a[1]-b[1]);
   tableFromEntries('tbl-divisi', divisi, ['Bagian / Divisi','Responden']);
 
   const flagged = computeQualityFlags();
