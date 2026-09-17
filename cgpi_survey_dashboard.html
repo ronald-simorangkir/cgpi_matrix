@@ -244,18 +244,6 @@
       </div>
     </section>
     <section>
-      <h2 class="section-title">Pangkat/Golongan dan Asal Instansi</h2>
-      <div class="grid-2">
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-eksternal-kategori"></canvas></div>
-        </div>
-        <div class="panel">
-          <div id="tbl-asal-instansi"></div>
-          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat</div>
-        </div>
-      </div>
-    </section>
-    <section>
       <h2 class="section-title">Kelola Alias Nama Perusahaan</h2>
       <div class="grid-2">
         <div class="panel">
@@ -265,7 +253,19 @@
         <div class="panel">
           <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Alias aktif</h3>
           <div id="company-alias-active"></div>
-          <div class="note">Deteksi berdasarkan kemiripan nama (mengabaikan "PT", "Tbk", "(Persero)", dan tanda baca). Centang varian yang ingin digabung, sesuaikan nama alias, lalu klik Terapkan. Tabel "Perusahaan/Instansi" di sebelah kiri otomatis mengikuti alias yang aktif.</div>
+          <div class="note">Deteksi berdasarkan kemiripan nama (mengabaikan "PT", "Tbk", "(Persero)", dan tanda baca). Centang varian yang ingin digabung, sesuaikan nama alias, lalu klik Terapkan. Tabel "Perusahaan/Instansi" di bawah otomatis mengikuti alias yang aktif.</div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Pangkat/Golongan dan Asal Instansi</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-eksternal-kategori"></canvas></div>
+        </div>
+        <div class="panel">
+          <div id="tbl-asal-instansi"></div>
+          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat</div>
         </div>
       </div>
     </section>
@@ -304,8 +304,8 @@
           <div class="lbl">Skor rata-rata gabungan, 5 aspek</div>
         </div>
         <div class="metric-card">
-          <div class="num" id="m-aspect-detail-pct">—<small>%</small></div>
-          <div class="lbl">Rata-rata cakupan jawaban, dari total responden per aspek</div>
+          <div class="num" id="m-aspect-highest">—</div>
+          <div class="lbl">Aspek dengan skor rata-rata tertinggi</div>
         </div>
         <div class="metric-card">
           <div class="num" id="m-aspect-lowest">—</div>
@@ -317,14 +317,9 @@
         <summary style="font-size:12.5px; color:var(--muted); cursor:pointer;">Diagnostik nilai mentah 75 kolom skor GCG (untuk pemeriksaan teknis)</summary>
         <div id="gcg-raw-diag-body" style="margin-top:10px; font-size:11.5px;"></div>
       </details>
-      <div class="panel" style="margin-bottom:16px;">
-        <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Cakupan Jawaban dan Skor per Aspek</h3>
-        <div id="tbl-detail-summary"></div>
-      </div>
       <div class="panel">
         <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Skor Rata-rata per Aspek (skala 0–100)</h3>
-        <div class="chart-box"><canvas id="chart-aspect-avg"></canvas></div>
-        <div class="note">Rata-rata jawaban tiap indikator per responden, skala 0–100.</div>
+        <div id="tbl-aspect-summary"></div>
       </div>
       <div id="aspect-detail-container" style="margin-top:16px; display:flex; flex-direction:column; gap:16px;"></div>
     </section>
@@ -859,8 +854,8 @@ function normalizeCompanyName(s){
     .toLowerCase()
     .replace(/\bpt\b\.?/g,' ')
     .replace(/\btbk\b\.?/g,' ')
-    .replace(/\(persero\)/g,' ')
-    .replace(/[.,]/g,' ')
+    .replace(/\(?\s*persero\s*\)?/g,' ')
+    .replace(/[.,()]/g,' ')
     .replace(/\s+/g,' ')
     .trim();
 }
@@ -1203,10 +1198,9 @@ function renderAspectAnalytics(){
   document.getElementById('m-aspect-overall').innerHTML = (overall!==null ? overall.toFixed(1) : '—') + '<small> / 100</small>';
 
   const totalRespondents = items.length;
-  const avgAnswered = stats.length ? stats.reduce((a,s)=>a+s.answered,0)/stats.length : 0;
-  document.getElementById('m-aspect-detail-pct').innerHTML =
-    (totalRespondents ? Math.round(avgAnswered/totalRespondents*100) : 0) + '<small>%</small>';
 
+  const highest = withScore.slice().sort((a,b)=>b.aspectAvg-a.aspectAvg)[0];
+  document.getElementById('m-aspect-highest').textContent = highest ? highest.name.split(',')[0] : '—';
   const lowest = withScore.slice().sort((a,b)=>a.aspectAvg-b.aspectAvg)[0];
   document.getElementById('m-aspect-lowest').textContent = lowest ? lowest.name.split(',')[0] : '—';
 
@@ -1220,70 +1214,38 @@ function renderAspectAnalytics(){
     document.getElementById('gcg-range-warning').style.display = 'none';
   }
 
-  // Cakupan jawaban per aspek. "Mengisi detail" = responden dengan jawaban pada indikator
-  // aspek ini; "Tidak mengisi rincian" dihitung dari selisih terhadap total responden
-  // (perkiraan, karena pilihan "sangat baik tanpa detail" itu sendiri tidak tersimpan
-  // sebagai data terpisah di List ini).
-  let dvHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Mengisi detail</th><th style="text-align:right">Tidak mengisi rincian (perkiraan)</th><th style="text-align:right">Skor rata-rata</th></tr></thead><tbody>';
-  stats.forEach(s => {
-    const notAnswered = totalRespondents - s.answered;
+  // Ringkasan skor per aspek, diurutkan dari skor terendah supaya area yang paling
+  // perlu perhatian terlihat lebih dulu.
+  const statsSorted = stats.slice().sort((a,b) => (a.aspectAvg===null?999:a.aspectAvg) - (b.aspectAvg===null?999:b.aspectAvg));
+  let sumHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Responden menjawab</th><th style="text-align:right">Skor rata-rata</th></tr></thead><tbody>';
+  statsSorted.forEach(s => {
     const scoreTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
-    const detailPct = totalRespondents ? Math.round(s.answered/totalRespondents*100) : 0;
-    const notPct = totalRespondents ? Math.round(notAnswered/totalRespondents*100) : 0;
-    dvHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered} (${detailPct}%)</td>` +
-      `<td class="n">${notAnswered} (${notPct}%)</td>` +
+    sumHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered} / ${totalRespondents}</td>` +
       `<td class="n">${scoreTxt} / 100</td></tr>`;
   });
-  dvHtml += '</tbody></table>';
-  document.getElementById('tbl-detail-summary').innerHTML = dvHtml;
+  sumHtml += '</tbody></table>';
+  document.getElementById('tbl-aspect-summary').innerHTML = sumHtml;
 
-  destroyIf('aspectavg');
-  const avgCtx = document.getElementById('chart-aspect-avg').getContext('2d');
-  charts.aspectavg = new Chart(avgCtx, {
-    type:'bar',
-    data:{
-      labels: stats.map(s => s.name.split(',')[0]),
-      datasets:[{ data: stats.map(s => s.aspectAvg), backgroundColor: PALETTE[0], borderRadius:2, maxBarThickness:46 }]
-    },
-    options:{
-      indexAxis:'y',
-      plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel } },
-      scales:{ x:{ min:0, max:100, ticks:{ font:{ size:11 } } }, y:{ ticks:{ font:{ size:11.5 } } } },
-      responsive:true, maintainAspectRatio:false
-    }
-  });
-
+  // Rincian per indikator, tiap aspek, sebagai tabel biasa (bukan grafik), diurutkan
+  // dari skor terendah supaya indikator paling lemah terlihat lebih dulu.
   const container = document.getElementById('aspect-detail-container');
   container.innerHTML = '';
-  stats.forEach((s, idx) => {
+  stats.forEach(s => {
     const panel = document.createElement('div');
     panel.className = 'panel aspect-panel';
-    const canvasId = 'chart-aspect-item-' + ASPECTS[idx].id;
     const avgTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
+    const sorted = s.itemStats.slice().sort((a,b) => (a.avg===null?999:a.avg) - (b.avg===null?999:b.avg));
+    let rows = '';
+    sorted.forEach(x => {
+      const t = x.avg!==null ? x.avg.toFixed(1) : '—';
+      rows += `<tr><td>${escapeHtml(x.label)}</td><td class="n">${t} / 100</td></tr>`;
+    });
     panel.innerHTML =
       `<h3>${s.name}</h3>
        <div class="aspect-stats">Skor aspek (skala 0–100): <b>${avgTxt} / 100</b> &nbsp;·&nbsp;
        ${s.answered} dari ${totalRespondents} responden menjawab aspek ini</div>
-       <div class="chart-box" style="height:${Math.max(180, s.itemStats.length*24)}px;"><canvas id="${canvasId}"></canvas></div>
-       <div class="note">Rincian per indikator di atas dalam skala 0–100, untuk melihat indikator mana yang paling lemah.</div>`;
+       <table class="dist"><thead><tr><th>Indikator</th><th style="text-align:right">Skor rata-rata</th></tr></thead><tbody>${rows}</tbody></table>`;
     container.appendChild(panel);
-
-    const sorted = s.itemStats.slice().sort((a,b) => (a.avg===null?99:a.avg) - (b.avg===null?99:b.avg));
-    destroyIf('aspectitem_'+ASPECTS[idx].id);
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    charts['aspectitem_'+ASPECTS[idx].id] = new Chart(ctx, {
-      type:'bar',
-      data:{
-        labels: sorted.map(x => x.label),
-        datasets:[{ data: sorted.map(x => x.avg), backgroundColor: PALETTE[idx % PALETTE.length], borderRadius:2, maxBarThickness:16 }]
-      },
-      options:{
-        indexAxis:'y',
-        plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel, font:{ size:9.5 } } },
-        scales:{ x:{ min:0, max:100, ticks:{ font:{ size:10.5 } } }, y:{ ticks:{ font:{ size:10.5 } } } },
-        responsive:true, maintainAspectRatio:false
-      }
-    });
   });
 }
 
@@ -1349,9 +1311,9 @@ function render(){
   barChart('chart-internal-eksternal', 'ie', ieEntries, true);
   pyramidChart('chart-gender-age', 'genderage', genderAgeCross());
 
+  renderCompanyAliasPanel();
   barChart('chart-eksternal-kategori', 'ekat', tally('pangkat_golongan', {top:8}), true);
   tableFromEntries('tbl-asal-instansi', tallyCompany().slice(0,10), ['Perusahaan/Instansi','Responden']);
-  renderCompanyAliasPanel();
 
   barChart('chart-pendidikan', 'pend', tallyOrdered('pendidikan', FIELD_DEFS.find(f=>f.id==='pendidikan').order), true);
   barChart('chart-bidang', 'bidang', tally('bidang', {top:7}), true);
