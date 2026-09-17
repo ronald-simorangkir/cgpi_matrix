@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/dist/msal-browser.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="./msal-browser.min.js"></script>
+<script src="./chart.umd.min.js"></script>
 <style>
   :root{
     --navy:#0B1F3A;
@@ -294,6 +294,29 @@
 
 <script>
 (function(){
+
+/* Fail loudly, not silently. If either library didn't load (blocked file,
+   wrong path, missing upload), show it on the page instead of a dead button. */
+function showBootError(msg, detail){
+  const p = document.getElementById('status-panel');
+  p.classList.add('show','err');
+  document.getElementById('status-msg').textContent = msg;
+  if(detail){
+    document.getElementById('status-tech').style.display = 'block';
+    document.getElementById('status-raw').textContent = detail;
+  }
+}
+if(typeof msal === 'undefined'){
+  showBootError('Library MSAL (msal-browser.min.js) gagal dimuat. Pastikan file tersebut ter-upload di folder yang sama dengan halaman ini di repo GitHub, dengan nama persis "msal-browser.min.js".');
+  return;
+}
+if(typeof Chart === 'undefined'){
+  showBootError('Library Chart.js (chart.umd.min.js) gagal dimuat. Pastikan file tersebut ter-upload di folder yang sama dengan halaman ini di repo GitHub, dengan nama persis "chart.umd.min.js".');
+  return;
+}
+window.addEventListener('error', function(e){
+  showBootError('Terjadi error JavaScript yang tidak tertangani: ' + (e.message||'tidak diketahui'), (e.filename||'') + ':' + (e.lineno||''));
+});
 
 /* ================= CONFIG ================= */
 const CONFIG = {
