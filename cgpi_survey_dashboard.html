@@ -149,6 +149,15 @@
     </div>
   </header>
 
+  <div id="filter-bar" style="display:none; margin:14px 0 4px; align-items:center; gap:8px;">
+    <label for="filter-peran" style="font-size:13px; color:var(--muted);">Tampilkan responden:</label>
+    <select id="filter-peran" style="font-family:'Inter',sans-serif; font-size:13px; padding:5px 8px; border:1px solid var(--line); background:#fff; color:var(--ink);">
+      <option value="all">Semua Responden</option>
+      <option value="internal">Internal MCI</option>
+      <option value="eksternal">Eksternal MCI</option>
+    </select>
+  </div>
+
   <div id="status-panel">
     <div id="status-msg"></div>
     <details class="tech" id="status-tech" style="display:none;">
@@ -270,13 +279,6 @@
         </div>
       </div>
     </section>
-    <section>
-      <h2 class="section-title">Sebaran per Bagian / Divisi (Internal MCI)</h2>
-      <div class="panel">
-        <div id="tbl-divisi"></div>
-        <div class="note">Diurutkan dari jumlah responden tersedikit, untuk membantu identifikasi unit yang perlu didorong mengisi</div>
-      </div>
-    </section>
     <div class="bagian-header"><span class="bagian-num">3</span><span class="bagian-title">Penilaian Aspek GCG</span></div>
     <section>
       <h2 class="section-title">Penilaian Aspek GCG</h2>
@@ -295,6 +297,10 @@
         </div>
       </div>
       <div id="gcg-range-warning" style="display:none; background:#FBEFE9; border:1px solid var(--danger); color:var(--danger); padding:10px 14px; font-size:12.5px; margin-bottom:14px;"></div>
+      <details id="gcg-raw-diag" style="display:none; margin-bottom:14px; background:#fff; border:1px solid var(--line); padding:10px 14px;">
+        <summary style="font-size:12.5px; color:var(--muted); cursor:pointer;">Diagnostik nilai mentah 75 kolom skor GCG (untuk pemeriksaan teknis)</summary>
+        <div id="gcg-raw-diag-body" style="margin-top:10px; font-size:11.5px;"></div>
+      </details>
       <div class="panel" style="margin-bottom:16px;">
         <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Cakupan Jawaban dan Skor per Aspek</h3>
         <div id="tbl-detail-summary"></div>
@@ -509,7 +515,9 @@ const ALL_FIELD_DEFS = FIELD_DEFS.concat(flattenAspectDefs());
 let account = null, graphToken = null, listId = null, siteId = null, listDisplayName = '';
 let columnMap = {};   // FIELD_DEFS.id -> SharePoint internal field name
 let lastListColumns = null; // raw column list of the chosen SharePoint List, for diagnostics
-let items = [];        // raw list items with .fields and .createdDateTime
+let allItems = [];     // raw list items with .fields and .createdDateTime, unfiltered
+let items = [];        // filtered view of allItems, driven by activeFilter
+let activeFilter = 'all'; // 'all' | 'internal' | 'eksternal'
 let charts = {};
 
 const msalInstance = new msal.PublicClientApplication({
@@ -688,16 +696,27 @@ async function fetchAllItems(){
 }
 
 /* ================= LOAD / REFRESH ================= */
+function applyFilter(){
+  if(activeFilter === 'all'){ items = allItems; return; }
+  items = allItems.filter(it => {
+    const v = (raw(it,'peran_responden') || '').toLowerCase();
+    const isInternal = v.startsWith('internal mci') || v === 'internal';
+    return activeFilter === 'internal' ? isInternal : !isInternal;
+  });
+}
+
 async function runLoad(){
   document.getElementById('loading-line').style.display = 'block';
   hideStatus();
   try{
     if(!siteId) await resolveSite();
     if(!listId) await pickList();
-    items = await fetchAllItems();
-    document.getElementById('list-name-tag').textContent = 'List: ' + listDisplayName + ' · ' + items.length + ' entri';
+    allItems = await fetchAllItems();
+    applyFilter();
+    document.getElementById('list-name-tag').textContent = 'List: ' + listDisplayName + ' · ' + allItems.length + ' entri';
     render();
     document.getElementById('app-body').classList.add('show');
+    document.getElementById('filter-bar').style.display = 'flex';
     setSync('', 'Tersinkron ' + new Date().toLocaleTimeString('id-ID'));
   }catch(e){
     handleLoadError(e);
@@ -709,8 +728,9 @@ async function runLoad(){
 async function refreshData(){
   setSync('stale', 'Menyegarkan…');
   try{
-    items = await fetchAllItems();
-    document.getElementById('list-name-tag').textContent = 'List: ' + listDisplayName + ' · ' + items.length + ' entri';
+    allItems = await fetchAllItems();
+    applyFilter();
+    document.getElementById('list-name-tag').textContent = 'List: ' + listDisplayName + ' · ' + allItems.length + ' entri';
     render();
     setSync('', 'Tersinkron ' + new Date().toLocaleTimeString('id-ID'));
   }catch(e){
@@ -718,6 +738,12 @@ async function refreshData(){
     setSync('off', 'Gagal menyegarkan');
   }
 }
+
+document.getElementById('filter-peran').addEventListener('change', (e) => {
+  activeFilter = e.target.value;
+  applyFilter();
+  render();
+});
 
 function handleLoadError(e){
   if(e.status === 403){
@@ -938,6 +964,31 @@ function renderFlaggedTable(containerId, flaggedList){
   document.getElementById(containerId).innerHTML = html;
 }
 
+function renderGcgRawDiagnostics(){
+  const flatItems = ASPECTS.flatMap(a => a.items);
+  let rows = '';
+  let totalNonNull = 0;
+  for(const def of flatItems){
+    const col = columnMap[def.id];
+    const rawVals = [];
+    for(const it of items){
+      const v = raw(it, def.id);
+      if(v !== null) rawVals.push(v);
+    }
+    totalNonNull += rawVals.length;
+    const nums = rawVals.map(v => parseFloat(v)).filter(n => !isNaN(n));
+    const min = nums.length ? Math.min(...nums) : null;
+    const max = nums.length ? Math.max(...nums) : null;
+    const sample = rawVals.slice(0,4).map(v=>escapeHtml(String(v))).join(', ');
+    rows += `<tr><td>${def.id}</td><td>${escapeHtml(col||'—')}</td><td class="n">${rawVals.length}</td>` +
+      `<td class="n">${min===null?'—':min}</td><td class="n">${max===null?'—':max}</td><td>${sample}</td></tr>`;
+  }
+  document.getElementById('gcg-raw-diag-body').innerHTML =
+    `<p>Total ${totalNonNull} nilai tidak kosong ditemukan di 75 kolom ini, dari ${items.length} responden × 75 indikator (maksimum ${items.length*75}).</p>
+     <table class="diag"><thead><tr><th>ID indikator</th><th>Nama kolom SharePoint</th><th>Jml terisi</th><th>Min</th><th>Max</th><th>Contoh nilai mentah</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('gcg-raw-diag').style.display = 'block';
+}
+
 function renderAspectAnalytics(){
   outOfRangeCount = 0;
   const stats = ASPECTS.map(computeAspectStats);
@@ -954,10 +1005,12 @@ function renderAspectAnalytics(){
   const lowest = withScore.slice().sort((a,b)=>a.aspectAvg-b.aspectAvg)[0];
   document.getElementById('m-aspect-lowest').textContent = lowest ? lowest.name.split(',')[0] : '—';
 
+  renderGcgRawDiagnostics();
   if(outOfRangeCount > 0){
     document.getElementById('gcg-range-warning').style.display = 'block';
     document.getElementById('gcg-range-warning').textContent =
-      `${outOfRangeCount} nilai pada kolom skor GCG berada di luar rentang 0–10 yang wajar dan dikecualikan dari perhitungan di atas. Ini indikasi kolom bernomor mungkin belum sepenuhnya sesuai urutan asli, atau ada isian data yang tidak wajar.`;
+      `${outOfRangeCount} nilai pada kolom skor GCG berada di luar rentang 0–10 yang wajar dan dikecualikan dari perhitungan di atas. Ini indikasi kolom bernomor mungkin belum sepenuhnya sesuai urutan asli, atau ada isian data yang tidak wajar. Buka "Diagnostik nilai mentah" di atas untuk detailnya.`;
+    document.getElementById('gcg-raw-diag').open = true;
   }else{
     document.getElementById('gcg-range-warning').style.display = 'none';
   }
@@ -1100,9 +1153,6 @@ function render(){
   tableFromEntries('tbl-jabatan', tally('jabatan', {top:10}), ['Jabatan','Responden']);
   barChart('chart-lama-menjabat', 'lm', tallyOrdered('lama_menjabat', FIELD_DEFS.find(f=>f.id==='lama_menjabat').order));
   doughnutChart('chart-lokasi', 'lokasi', tally('lokasi', {top:4}));
-
-  const divisi = tally('divisi', {top:999, groupRest:false}).sort((a,b)=>a[1]-b[1]);
-  tableFromEntries('tbl-divisi', divisi, ['Bagian / Divisi','Responden']);
 
   const flagged = computeQualityFlags();
   document.getElementById('m-flagged').textContent = flagged.length;
