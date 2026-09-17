@@ -286,7 +286,7 @@
         </div>
         <div class="metric-card">
           <div class="num" id="m-aspect-detail-pct">—<small>%</small></div>
-          <div class="lbl">Rata-rata proporsi responden yang menilai secara detail (bukan sekadar "sangat baik")</div>
+          <div class="lbl">Rata-rata cakupan jawaban, dari total responden per aspek</div>
         </div>
         <div class="metric-card">
           <div class="num" id="m-aspect-lowest">—</div>
@@ -294,13 +294,13 @@
         </div>
       </div>
       <div class="panel" style="margin-bottom:16px;">
-        <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Responden Detail vs Non-Detail per Aspek</h3>
+        <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Cakupan Jawaban dan Skor per Aspek</h3>
         <div id="tbl-detail-summary"></div>
       </div>
       <div class="panel">
         <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Skor Rata-rata per Aspek (skala 0–100)</h3>
         <div class="chart-box"><canvas id="chart-aspect-avg"></canvas></div>
-        <div class="note">Menggabungkan responden yang menilai detail (rata-rata indikator, dikonversi ke skala 0–100) dan yang memilih "sangat baik" tanpa detail (dinilai penuh, 100).</div>
+        <div class="note">Rata-rata jawaban tiap indikator per responden, dikonversi dari skala 0–10 ke skala 0–100.</div>
       </div>
       <div id="aspect-detail-container" style="margin-top:16px; display:flex; flex-direction:column; gap:16px;"></div>
     </section>
@@ -356,8 +356,10 @@ const CONFIG = {
    Matching is substring / case-insensitive so minor truncation in the List
    still resolves correctly. */
 const FIELD_DEFS = [
-  { id:'nama',          match:['diisi nama pribadi'] },
-  { id:'email',         match:['alamat email'] },
+  { id:'nama',          match:['nama'], exact:true },
+  { id:'nama_perusahaan', match:['nama perusahaan'] },
+  { id:'peran_responden', match:['responden yang mengisi kuisioner mewakili'] },
+  { id:'email',         match:['email'], exact:true },
   { id:'gender',        match:['saya adalah seorang'] },
   { id:'age',           match:['saya berumur'],
     order:['Kurang dari 25 tahun','25 - 34 tahun','35 - 44 tahun','45 - 54 tahun','55 tahun atau lebih'] },
@@ -366,13 +368,11 @@ const FIELD_DEFS = [
     order:['Sekolah Dasar','Sekolah Menengah Pertama','Sekolah Menengah Atas','Akademi Kejuruan sampai tingkat D-III','Pendidikan Sarjana S-1','Pendidikan Sarjana S-2 atau profesional','Pendidikan Doktor S-3'] },
   { id:'bidang',        match:['latar belakang atau bidang pendidikan'] },
   { id:'lnegeri',       match:['bersekolah di luar negeri'] },
-  { id:'kesesuaian',    match:['kesesuaian pekerjaan saya'] },
-  { id:'kriteria',      match:['silahkan pilih kriteria'] },
-  { id:'eksternal_kat', match:['apabila anda pihak eksternal'] },
   { id:'asal_instansi', match:['asal perusahaan','instansi'] },
-  { id:'jabatan',       match:['pilihan jabatan'] },
+  { id:'jabatan',       match:['jabatan'], exact:true },
+  { id:'pangkat_golongan', match:['pangkat','jabatan, atau golongan'] },
   { id:'divisi',        match:['bagian','divisi tempat saya bekerja'] },
-  { id:'lama_menjabat', match:['lama saya menjabat pada posisi'],
+  { id:'lama_menjabat', match:['menjabat pada posisi'],
     order:['Kurang dari 3 bulan','3 bulan - 1 tahun','1 - 3 tahun','3 - 5 tahun','Lebih dari 5 tahun'] },
   { id:'lama_perusahaan', match:['lama saya bekerja di perusahaan ini'],
     order:['Kurang dari 1 tahun','1 - 5 tahun','6 - 10 tahun','10 - 20 tahun','Lebih dari 20 tahun'] },
@@ -605,8 +605,7 @@ async function pickList(){
     }catch(e){ continue; }
     let score = 0;
     for(const def of ALL_FIELD_DEFS){
-      const hit = cols.find(col => def.match.every(m => (col.displayName||'').toLowerCase().includes(m)));
-      if(hit) score++;
+      if(cols.find(col => defMatchesColumn(def, col))) score++;
     }
     if(score > bestScore){ bestScore = score; best = { list:c, cols }; }
   }
@@ -619,10 +618,24 @@ async function pickList(){
   lastListColumns = best.cols;
   columnMap = {};
   for(const def of ALL_FIELD_DEFS){
-    const hit = best.cols.find(col => def.match.every(m => (col.displayName||'').toLowerCase().includes(m)));
+    const hit = best.cols.find(col => defMatchesColumn(def, col));
     if(hit) columnMap[def.id] = hit.name;
   }
+  // The 75 GCG rating questions carry no text at all in this List, just bare
+  // sequential numbers ("1".."75"). Map them by numeric order directly onto
+  // the 5 aspects in their documented sequence (18+19+12+13+13 = 75).
+  const numericCols = best.cols.filter(c => /^\d+$/.test((c.displayName||'').trim()));
+  numericCols.sort((a,b) => parseInt(a.displayName,10) - parseInt(b.displayName,10));
+  if(numericCols.length === 75){
+    const flatItems = ASPECTS.flatMap(a => a.items);
+    flatItems.forEach((def, i) => { columnMap[def.id] = numericCols[i].name; });
+  }
   renderDiagnostics();
+}
+function defMatchesColumn(def, col){
+  const name = (col.displayName||'').trim().toLowerCase();
+  if(def.exact) return def.match.some(m => name === m.toLowerCase());
+  return def.match.every(m => name.includes(m));
 }
 
 function renderDiagnostics(){
@@ -807,39 +820,30 @@ function isExternal(it){
 }
 
 /* ================= GCG SELF-ASSESSMENT SCORING ================= */
-function isDetailChosen(val){ return !!val && /detil|detail/i.test(val); }
 function toScore(val){
   if(val===null || val===undefined || val==='') return null;
   const n = parseFloat(val);
   return isNaN(n) ? null : n;
 }
 function computeAspectStats(aspect){
-  let answered = 0, detailCount = 0, blanketCount = 0;
-  const respondentScores = []; // per-respondent aspect score, 0-100 scale, detail + non-detail combined
+  // No "gate" column exists in this List (the "sangat baik" vs "detail" choice
+  // isn't persisted), so every respondent's aspect score is a plain average of
+  // whichever of this aspect's 0-10 indicators they answered, scaled to 0-100.
+  const respondentScores = [];
   for(const it of items){
-    const g = raw(it, aspect.id+'_gate');
-    if(g===null) continue;
-    answered++;
-    if(isDetailChosen(g)){
-      detailCount++;
-      let sum = 0, n = 0;
-      for(const def of aspect.items){
-        const s = toScore(raw(it, def.id));
-        if(s===null) continue;
-        sum += s; n++;
-      }
-      if(n > 0) respondentScores.push((sum/n) * 10); // 0-10 -> 0-100
-    }else{
-      blanketCount++;
-      respondentScores.push(100); // "sangat baik" tanpa detail dinilai penuh
+    let sum = 0, n = 0;
+    for(const def of aspect.items){
+      const s = toScore(raw(it, def.id));
+      if(s===null) continue;
+      sum += s; n++;
     }
+    if(n > 0) respondentScores.push((sum/n) * 10); // 0-10 -> 0-100
   }
   const aspectAvg = respondentScores.length
     ? respondentScores.reduce((a,b)=>a+b,0)/respondentScores.length
     : null;
+  const answered = respondentScores.length;
 
-  // Item-level averages (0-10) stay based only on respondents who answered that
-  // specific indicator, for pinpointing the weakest indicators within an aspect.
   const itemStats = aspect.items.map(def => {
     let sum = 0, n = 0;
     for(const it of items){
@@ -849,7 +853,7 @@ function computeAspectStats(aspect){
     }
     return { id:def.id, label:def.label, avg: n ? sum/n : null, n };
   });
-  return { name:aspect.name, itemStats, aspectAvg, answered, detailCount, blanketCount };
+  return { name:aspect.name, itemStats, aspectAvg, answered };
 }
 /* ================= CHART HELPERS ================= */
 const PALETTE = ['#0B1F3A','#B8933E','#2F6F63','#8C9AAE','#AE4430','#6B5B95','#C9A227','#4A6B8A'];
@@ -923,22 +927,20 @@ function renderAspectAnalytics(){
   const overall = withScore.length ? withScore.reduce((a,s)=>a+s.aspectAvg,0)/withScore.length : null;
   document.getElementById('m-aspect-overall').innerHTML = (overall!==null ? overall.toFixed(1) : '—') + '<small> / 100</small>';
 
-  const totalAnswered = stats.reduce((a,s)=>a+s.answered,0);
-  const totalDetail = stats.reduce((a,s)=>a+s.detailCount,0);
+  const totalRespondents = items.length;
+  const avgAnswered = stats.length ? stats.reduce((a,s)=>a+s.answered,0)/stats.length : 0;
   document.getElementById('m-aspect-detail-pct').innerHTML =
-    (totalAnswered ? Math.round(totalDetail/totalAnswered*100) : 0) + '<small>%</small>';
+    (totalRespondents ? Math.round(avgAnswered/totalRespondents*100) : 0) + '<small>%</small>';
 
   const lowest = withScore.slice().sort((a,b)=>a.aspectAvg-b.aspectAvg)[0];
   document.getElementById('m-aspect-lowest').textContent = lowest ? lowest.name.split(',')[0] : '—';
 
-  // Ringkasan pilihan detail vs non-detail per aspek
-  let dvHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Menjawab</th><th style="text-align:right">Detail</th><th style="text-align:right">Sangat baik (non-detail)</th></tr></thead><tbody>';
+  // Ringkasan cakupan jawaban per aspek
+  let dvHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Responden menjawab</th><th style="text-align:right">Skor rata-rata</th></tr></thead><tbody>';
   stats.forEach(s => {
-    const detailPct = s.answered ? Math.round(s.detailCount/s.answered*100) : 0;
-    const blanketPct = s.answered ? Math.round(s.blanketCount/s.answered*100) : 0;
-    dvHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered}</td>` +
-      `<td class="n">${s.detailCount} (${detailPct}%)</td>` +
-      `<td class="n">${s.blanketCount} (${blanketPct}%)</td></tr>`;
+    const scoreTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
+    dvHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered} / ${totalRespondents}</td>` +
+      `<td class="n">${scoreTxt} / 100</td></tr>`;
   });
   dvHtml += '</tbody></table>';
   document.getElementById('tbl-detail-summary').innerHTML = dvHtml;
@@ -968,10 +970,10 @@ function renderAspectAnalytics(){
     const avgTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
     panel.innerHTML =
       `<h3>${s.name}</h3>
-       <div class="aspect-stats">Skor aspek (gabungan detail + non-detail, skala 0–100): <b>${avgTxt} / 100</b> &nbsp;·&nbsp;
-       ${s.answered} responden menjawab aspek ini (${s.detailCount} menilai detail, ${s.blanketCount} memilih "sangat baik" tanpa detail, dinilai penuh)</div>
+       <div class="aspect-stats">Skor aspek (skala 0–100): <b>${avgTxt} / 100</b> &nbsp;·&nbsp;
+       ${s.answered} dari ${totalRespondents} responden menjawab aspek ini</div>
        <div class="chart-box" style="height:${Math.max(180, s.itemStats.length*24)}px;"><canvas id="${canvasId}"></canvas></div>
-       <div class="note">Rincian per indikator di atas hanya dari responden yang menilai detail (skala 0–10), untuk melihat indikator mana yang paling lemah.</div>`;
+       <div class="note">Rincian per indikator di atas dalam skala 0–10, untuk melihat indikator mana yang paling lemah.</div>`;
     container.appendChild(panel);
 
     const sorted = s.itemStats.slice().sort((a,b) => (a.avg===null?99:a.avg) - (b.avg===null?99:b.avg));
