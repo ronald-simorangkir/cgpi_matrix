@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progres Angket CGPI 2025 — MCI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/dist/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#0B1F3A;
+    --navy-2:#13294B;
+    --gold:#B8933E;
+    --gold-soft:#E9D9AE;
+    --bg:#F6F5F0;
+    --panel:#FFFFFF;
+    --ink:#1B2430;
+    --muted:#646B76;
+    --line:#E3E0D6;
+    --teal:#2F6F63;
+    --danger:#AE4430;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; line-height:1.45;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 60px;}
+  header.top{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+    border-bottom:2px solid var(--navy); padding-bottom:16px; margin-bottom:22px; flex-wrap:wrap;
+  }
+  .title-block h1{
+    font-family:'Source Serif 4',Georgia,serif; font-weight:700; font-size:28px;
+    margin:0 0 4px; color:var(--navy);
+  }
+  .title-block p{margin:0; color:var(--muted); font-size:14px;}
+  .auth-block{text-align:right; font-size:13px; color:var(--muted); min-width:220px;}
+  .btn{
+    background:var(--navy); color:#fff; border:none; padding:9px 16px; border-radius:3px;
+    font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .btn:hover{background:var(--navy-2);}
+  .btn.secondary{background:transparent; color:var(--navy); border:1px solid var(--navy);}
+  .sync-line{display:flex; align-items:center; gap:8px; justify-content:flex-end; margin-top:6px;}
+  .dot{width:7px; height:7px; border-radius:50%; background:#3a9a6d; display:inline-block;}
+  .dot.stale{background:#c9a227;}
+  .dot.off{background:#9aa0a8;}
+
+  #status-panel{
+    background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--navy);
+    padding:16px 18px; margin-bottom:22px; font-size:14px; display:none;
+  }
+  #status-panel.show{display:block;}
+  #status-panel.err{border-left-color:var(--danger);}
+  #status-panel code{background:#f1f0ea; padding:1px 5px; border-radius:2px; font-size:12px;}
+  details.tech summary{cursor:pointer; color:var(--muted); font-size:12px; margin-top:8px;}
+  details.tech pre{white-space:pre-wrap; font-size:11px; background:#f1f0ea; padding:8px; border-radius:3px;}
+
+  section{margin-bottom:34px;}
+  h2.section-title{
+    font-family:'Source Serif 4',Georgia,serif; font-size:19px; font-weight:600;
+    color:var(--navy); margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+
+  .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  @media(max-width:860px){.card-row{grid-template-columns:repeat(2,1fr);}}
+  .metric-card{
+    background:var(--panel); border:1px solid var(--line); padding:16px 18px;
+  }
+  .metric-card .num{
+    font-family:'Source Serif 4',Georgia,serif; font-size:32px; font-weight:700; color:var(--navy);
+    line-height:1;
+  }
+  .metric-card .num small{font-size:16px; font-weight:400; color:var(--muted);}
+  .metric-card .lbl{font-size:12.5px; color:var(--muted); margin-top:6px;}
+  .metric-card.accent .num{color:var(--gold);}
+
+  .panel{background:var(--panel); border:1px solid var(--line); padding:18px 20px;}
+  .aspect-panel h3{
+    font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy);
+    margin:0 0 4px;
+  }
+  .aspect-stats{font-size:12.5px; color:var(--muted); margin-bottom:10px;}
+  .aspect-stats b{color:var(--navy);}
+  .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px;}
+  @media(max-width:860px){.grid-2{grid-template-columns:1fr;}}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  @media(max-width:860px){.grid-3{grid-template-columns:1fr;}}
+  .chart-box{position:relative; height:260px;}
+  .chart-box.tall{height:320px;}
+  .note{font-size:12.5px; color:var(--muted); margin-top:10px;}
+
+  table.dist{width:100%; border-collapse:collapse; font-size:13px;}
+  table.dist th{
+    text-align:left; font-weight:600; color:var(--muted); font-size:11.5px;
+    text-transform:none; border-bottom:1px solid var(--line); padding:6px 4px;
+  }
+  table.dist td{padding:6px 4px; border-bottom:1px solid #f0efe8;}
+  table.dist td.n{text-align:right; font-variant-numeric:tabular-nums; color:var(--navy); font-weight:600;}
+  .bar-inline{height:6px; background:var(--gold-soft); position:relative; margin-top:3px;}
+  .bar-inline i{position:absolute; left:0; top:0; bottom:0; background:var(--navy);}
+
+  footer{
+    margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  #app-body{display:none;}
+  #app-body.show{display:block;}
+  #loading-line{font-size:13px; color:var(--muted); padding:40px 0; text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="title-block">
+      <h1>Progres Pengumpulan Angket CGPI 2025</h1>
+      <p>Self-Assessment Corporate Governance Perception Index — MCI &amp; Ekosistem</p>
+    </div>
+    <div class="auth-block">
+      <div id="auth-controls"><button class="btn" id="btn-login">Masuk dengan Akun Mandiri</button></div>
+      <div class="sync-line" id="sync-line" style="display:none;">
+        <span class="dot off" id="sync-dot"></span>
+        <span id="sync-text">Belum tersinkron</span>
+        <button class="btn secondary" id="btn-refresh" style="display:none;">Segarkan</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="status-panel">
+    <div id="status-msg"></div>
+    <details class="tech" id="status-tech" style="display:none;">
+      <summary>Detail teknis</summary>
+      <pre id="status-raw"></pre>
+    </details>
+  </div>
+
+  <div id="loading-line" style="display:none;">Memuat data dari SharePoint…</div>
+
+  <div id="app-body">
+
+    <section>
+      <div class="card-row">
+        <div class="metric-card accent">
+          <div class="num" id="m-total">—<small> / 186</small></div>
+          <div class="lbl">Responden terkumpul dari target 186</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-pct">—<small>%</small></div>
+          <div class="lbl">Capaian terhadap target</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-days">—</div>
+          <div class="lbl">Hari tersisa hingga 30 September 2026</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-rate">—</div>
+          <div class="lbl">Rata-rata responden masuk / hari (7 hari terakhir)</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Tren Pengumpulan &amp; Proyeksi</h2>
+      <div class="panel">
+        <div class="chart-box tall"><canvas id="chart-trend"></canvas></div>
+        <div class="note" id="projection-note"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Analitik Penilaian GCG (Skor Self-Assessment)</h2>
+      <div class="card-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:14px;">
+        <div class="metric-card accent">
+          <div class="num" id="m-aspect-overall">—<small> / 10</small></div>
+          <div class="lbl">Skor rata-rata gabungan, 5 aspek</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-aspect-detail-pct">—<small>%</small></div>
+          <div class="lbl">Rata-rata proporsi responden yang menilai secara detail (bukan sekadar "sangat baik")</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-aspect-lowest">—</div>
+          <div class="lbl">Aspek dengan skor rata-rata terendah</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="chart-box"><canvas id="chart-aspect-avg"></canvas></div>
+        <div class="note">Skor rata-rata per aspek, skala 0–10, dihitung dari jawaban responden yang memilih penilaian detail. Responden yang memilih "sangat baik" tanpa detail dihitung terpisah dan tidak masuk rata-rata ini.</div>
+      </div>
+      <div id="aspect-detail-container" style="margin-top:16px; display:flex; flex-direction:column; gap:16px;"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Komposisi Responden</h2>
+      <div class="grid-3">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-internal-eksternal"></canvas></div>
+          <div class="note">Internal MCI (pegawai, Direksi, Dewan Komisaris) vs pihak eksternal ekosistem</div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-gender"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-age"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Kategori Pihak Eksternal</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-eksternal-kategori"></canvas></div>
+        </div>
+        <div class="panel">
+          <div id="tbl-asal-instansi"></div>
+          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat (pihak eksternal)</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Latar Belakang Pendidikan</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-pendidikan"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-bidang"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Latar Belakang Pekerjaan</h2>
+      <div class="grid-3">
+        <div class="panel">
+          <div id="tbl-jabatan"></div>
+          <div class="note">Pilihan jabatan, seluruh responden</div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-lama-menjabat"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-lokasi"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Sebaran per Bagian / Divisi (Internal MCI)</h2>
+      <div class="panel">
+        <div id="tbl-divisi"></div>
+        <div class="note">Diurutkan dari jumlah responden tersedikit, untuk membantu identifikasi unit yang perlu didorong mengisi</div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Kualitas Data — Entri Perlu Verifikasi</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="card-row" style="grid-template-columns:repeat(2,1fr);">
+            <div class="metric-card">
+              <div class="num" id="m-flagged">—</div>
+              <div class="lbl">Entri dengan indikasi kualitas rendah</div>
+            </div>
+            <div class="metric-card">
+              <div class="num" id="m-flagged-pct">—<small>%</small></div>
+              <div class="lbl">Dari total responden terkumpul</div>
+            </div>
+          </div>
+          <div class="chart-box" style="height:190px; margin-top:14px;"><canvas id="chart-flag-reason"></canvas></div>
+        </div>
+        <div class="panel">
+          <div id="tbl-flagged"></div>
+          <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis untuk mengeluarkan data. Perlu verifikasi manual oleh panitia sebelum entri ini dikecualikan dari rekap akhir.</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <span>Sumber data: Microsoft List "CGPI" — dibaca langsung via Microsoft Graph, tidak disalin atau disimpan di luar tenant.</span>
+    <span id="list-name-tag"></span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+
+/* ================= CONFIG ================= */
+const CONFIG = {
+  clientId: '423fdc02-e076-49c9-9e09-51d417b12401',
+  tenantId: 'ecf5a6b8-f78b-4874-9e7a-d5763e78ccb7',
+  siteHostname: 'ptmandiricapital.sharepoint.com',
+  sitePath: '/sites/CGPI',
+  targetRespondents: 186,
+  deadline: new Date('2026-09-30T23:59:59+07:00'),
+  scopes: ['Sites.Read.All'],
+  autoRefreshMs: 5 * 60 * 1000
+};
+
+/* Question-text fragments used to auto-match SharePoint column display names.
+   Matching is substring / case-insensitive so minor truncation in the List
+   still resolves correctly. */
+const FIELD_DEFS = [
+  { id:'nama',          match:['diisi nama pribadi'] },
+  { id:'email',         match:['alamat email'] },
+  { id:'gender',        match:['saya adalah seorang'] },
+  { id:'age',           match:['saya berumur'],
+    order:['Kurang dari 25 tahun','25 - 34 tahun','35 - 44 tahun','45 - 54 tahun','55 tahun atau lebih'] },
+  { id:'bahasa',        match:['kemampuan bahasa'], multi:true },
+  { id:'pendidikan',    match:['tingkat pendidikan saya'],
+    order:['Sekolah Dasar','Sekolah Menengah Pertama','Sekolah Menengah Atas','Akademi Kejuruan sampai tingkat D-III','Pendidikan Sarjana S-1','Pendidikan Sarjana S-2 atau profesional','Pendidikan Doktor S-3'] },
+  { id:'bidang',        match:['latar belakang atau bidang pendidikan'] },
+  { id:'lnegeri',       match:['bersekolah di luar negeri'] },
+  { id:'kesesuaian',    match:['kesesuaian pekerjaan saya'] },
+  { id:'kriteria',      match:['silahkan pilih kriteria'] },
+  { id:'eksternal_kat', match:['apabila anda pihak eksternal'] },
+  { id:'asal_instansi', match:['asal perusahaan','instansi'] },
+  { id:'jabatan',       match:['pilihan jabatan'] },
+  { id:'divisi',        match:['bagian','divisi tempat saya bekerja'] },
+  { id:'lama_menjabat', match:['lama saya menjabat pada posisi'],
+    order:['Kurang dari 3 bulan','3 bulan - 1 tahun','1 - 3 tahun','3 - 5 tahun','Lebih dari 5 tahun'] },
+  { id:'lama_perusahaan', match:['lama saya bekerja di perusahaan ini'],
+    order:['Kurang dari 1 tahun','1 - 5 tahun','6 - 10 tahun','10 - 20 tahun','Lebih dari 20 tahun'] },
+  { id:'lokasi',        match:['lokasi tempat saya bekerja'] },
+  { id:'karakteristik', match:['karakteristik utama pekerjaan'] },
+];
+
+/* GCG self-assessment: 5 aspects, each with a gating question (blanket "sangat baik"
+   vs "detail") and N detailed 0-10 indicator questions. Matching is substring-based
+   on the start of each question, the same way as FIELD_DEFS above. */
+const ASPECTS = [
+  { id:'kp', name:'Efektivitas Kepemimpinan, Organ Perusahaan, dan Pengawasan',
+    gateMatch:['efektivitas kepemimpinan, organ perusahaan, dan pengawasan'],
+    items:[
+      { id:'kp_01', label:'Pengawasan internal berkelanjutan', match:['mekanisme pengawasan internal perusahaan yang berkelanjutan'] },
+      { id:'kp_02', label:'Kaderisasi kepemimpinan (successor)', match:['pengembangan kaderisasi kepemimpinan'] },
+      { id:'kp_03', label:'Peran Direksi & Komisaris bangun ekosistem', match:['peran direksi dan dewan komisaris/dewan pengawas dalam membangun ekosistem bisnis'] },
+      { id:'kp_04', label:'Peran Komite Audit', match:['pelaksanaan peran komite audit'] },
+      { id:'kp_05', label:'Arahan strategis Pemegang Saham', match:['arahan strategis pemegang saham untuk menempatkan perusahaan'] },
+      { id:'kp_06', label:'Kepemimpinan Komisaris bangun ekosistem', match:['kepemimpinan dewan komisaris dalam mendukung upaya membangun ekosistem bisnis'] },
+      { id:'kp_07', label:'Peran Pemegang Saham dukung pertumbuhan', match:['peran pemegang saham dalam membangun pertumbuhan yang berkelanjutan'] },
+      { id:'kp_08', label:'Peran Direksi bangun kemitraan strategis', match:['peran direksi dalam membangun dan memperluas kemitraan strategis'] },
+      { id:'kp_09', label:'Struktur & fungsi SKAI', match:['struktur organisasi dan pelaksanaan fungsi skai'] },
+      { id:'kp_10', label:'Mekanisme Direksi-Komisaris bangun ekosistem', match:['mekanisme direksi dan dewan komisaris dalam membangun ekosistem bisnis'] },
+      { id:'kp_11', label:'Komitmen Pemegang Saham perluas ekosistem', match:['komitmen pemegang saham untuk mendukung pembangunan dan perluasan ekosistem bisnis'] },
+      { id:'kp_12', label:'Independensi auditor eksternal', match:['independensi auditor eksternal yang dipilih'] },
+      { id:'kp_13', label:'Penunjukan ketua & anggota komite Komisaris', match:['penunjukan dan penugasan ketua serta anggota komite di dewan komisaris'] },
+      { id:'kp_14', label:'Kepemimpinan tingkatkan kepercayaan mitra', match:['kepemimpinan direksi dan dewan komisaris meningkatkan kepercayaan'] },
+      { id:'kp_15', label:'Komposisi & kompetensi Direksi', match:['komposisi dan kompetensi direksi dalam memastikan tersedianya kepemimpinan'] },
+      { id:'kp_16', label:'Independensi pengawasan SKAI', match:['independensi fungsi pengawasan internal skai'] },
+      { id:'kp_17', label:'Kebijakan rangkap jabatan Komisaris', match:['kejelasan dan kebijakan terkait rangkap jabatan'] },
+      { id:'kp_18', label:'Komposisi & kualifikasi Dewan Komisaris', match:['komposisi jumlah dan kualifikasi anggota dewan komisaris'] },
+    ]},
+  { id:'ik', name:'Integritas, Kepatuhan, Manajemen Risiko, dan Pengendalian Internal',
+    gateMatch:['integritas, kepatuhan, manajemen risiko, dan pengendalian internal'],
+    items:[
+      { id:'ik_01', label:'Etika bisnis & kode etik mitra', match:['penerapan etika bisnis dan kode etik yang mengatur hubungan dengan mitra'] },
+      { id:'ik_02', label:'Pengendalian internal pihak berelasi', match:['pengendalian internal (internal control) yang memadai untuk mengatur dan mengawasi transaksi dengan pihak berelasi'] },
+      { id:'ik_03', label:'Sistem pengendalian intern efektif', match:['pengembangan sistem pengendalian intern (internal control) yang efektif'] },
+      { id:'ik_04', label:'Penciptaan nilai jalankan kepatuhan', match:['penciptaan nilai perusahaan dalam menjalankan kepatuhan'] },
+      { id:'ik_05', label:'Pengendalian gratifikasi', match:['mekanisme pengendalian gratifikasi'] },
+      { id:'ik_06', label:'Sistem manajemen kepatuhan', match:['pengembangan sistem manajemen kepatuhan'] },
+      { id:'ik_07', label:'Pengendalian benturan kepentingan', match:['penerapan pengendalian benturan kepentingan menghasilkan pengambilan keputusan'] },
+      { id:'ik_08', label:'Gratifikasi bentuk budaya integritas', match:['penerapan pengendalian gratifikasi menghasilkan budaya integritas'] },
+      { id:'ik_09', label:'Pengendalian internal ICoFR', match:['pengembangan sistem pengendalian internal (internal control) atas pelaporan keuangan'] },
+      { id:'ik_10', label:'Hasil pengendalian & pengawasan internal', match:['pengendalian dan pengawasan internal memberikan hasil'] },
+      { id:'ik_11', label:'Kepatuhan bangun ekosistem bisnis', match:['mekanisme kepatuhan dalam membangun ekosistem bisnis'] },
+      { id:'ik_12', label:'Whistleblowing System (WBS)', match:['pengembangan sistem pelaporan pelanggaran dan perlindungan saksi'] },
+      { id:'ik_13', label:'Manajemen risiko perusahaan', match:['mekanisme manajemen risiko perusahaan'] },
+      { id:'ik_14', label:'Budaya kepatuhan', match:['pengembangan budaya kepatuhan'] },
+      { id:'ik_15', label:'Manajemen risiko ekosistem bisnis', match:['manajemen risiko dalam pengembangan ekosistem bisnis'] },
+      { id:'ik_16', label:'Tata nilai & budaya ke perilaku karyawan', match:['upaya membangun, mengkomunikasikan, dan mengintegrasikan tata nilai'] },
+      { id:'ik_17', label:'Budaya sadar risiko', match:['penerapan budaya sadar risiko'] },
+      { id:'ik_18', label:'Tata kelola & etika bentuk reputasi', match:['penerapan tata kelola perusahaan yang baik dan etika bisnis menghasilkan reputasi'] },
+      { id:'ik_19', label:'Budaya risiko', match:['pengembangan budaya risiko'] },
+    ]},
+  { id:'so', name:'Strategi, Organisasi, Sumber Daya, dan Keunggulan Operasional',
+    gateMatch:['strategi, organisasi, sumber daya, dan keunggulan operasional'],
+    items:[
+      { id:'so_01', label:'Pengembangan struktur organisasi', match:['pengembangan struktur organisasi digambarkan'] },
+      { id:'so_02', label:'Integrasi strategi ke RJPP/RKAP', match:['mekanisme integrasi strategi pembangunan ekosistem bisnis ke dalam rjpp'] },
+      { id:'so_03', label:'Pengelolaan sumber daya keuangan', match:['mekanisme pengelolaan sumber daya keuangan untuk mendukung keberlanjutan perusahaan'] },
+      { id:'so_04', label:'Alokasi sumber daya korporasi', match:['pengelolaan dan alokasi sumber daya korporasi menghasilkan peningkatan kinerja'] },
+      { id:'so_05', label:'Komunikasi & evaluasi pelaksanaan strategi', match:['mengomunikasikan, mengarahkan, memantau, dan mengevaluasi pelaksanaan strategi'] },
+      { id:'so_06', label:'Alokasi sumber daya utk ekosistem', match:['mekanisme alokasi sumber daya untuk mendukung pengelolaan dan pengembangan ekosistem bisnis'] },
+      { id:'so_07', label:'Pengelolaan proses bisnis', match:['pengelolaan proses bisnis yang efektif, efisien, adaptif'] },
+      { id:'so_08', label:'Pemanfaatan sumber daya teknologi', match:['mekanisme pemanfaatan dan pengelolaan sumber daya teknologi'] },
+      { id:'so_09', label:'Kebijakan & pedoman fungsi manajemen', match:['fungsi-fungsi manajemen memiliki kebijakan, pedoman kerja'] },
+      { id:'so_10', label:'Integrasi perencanaan strategis & ekosistem', match:['integrasi perencanaan strategis dengan pengembangan ekosistem bisnis'] },
+      { id:'so_11', label:'Kapabilitas hadapi dinamika perubahan', match:['pengembangan kapabilitas dalam memahami dan menghadapi dinamika perubahan'] },
+      { id:'so_12', label:'Peninjauan & pembaruan visi misi', match:['mekanisme peninjauan dan pembaruan visi, misi'] },
+    ]},
+  { id:'ta', name:'Transparansi, Akuntabilitas, dan Pemenuhan Hak Pemangku Kepentingan',
+    gateMatch:['transparansi, akuntabilitas, dan pemenuhan hak pemangku kepentingan'],
+    items:[
+      { id:'ta_01', label:'Hak pemegang saham/RUPS', match:['mekanisme pemenuhan hak pemegang saham/rups dalam pengangkatan'] },
+      { id:'ta_02', label:'Pengungkapan kinerja kolaborasi ekosistem', match:['pengungkapan informasi terkait kinerja kolaborasi dan capaian ekosistem bisnis'] },
+      { id:'ta_03', label:'Pengungkapan informasi berkala', match:['pengungkapan informasi berkala perusahaan bagi stakeholder'] },
+      { id:'ta_04', label:'Pengungkapan informasi produk/jasa', match:['pengungkapan informasi terkait produk dan jasa layanan perusahaan'] },
+      { id:'ta_05', label:'Hak Pemegang Saham atas dividen', match:['pelaksanaan hak pemegang saham atas pembagian dividen'] },
+      { id:'ta_06', label:'Keterbukaan informasi ciptakan hasil', match:['pengungkapan dan keterbukaan informasi menciptakan hasil'] },
+      { id:'ta_07', label:'Hubungan perjanjian pihak ketiga', match:['hubungan dalam perjanjian dengan pihak ketiga'] },
+      { id:'ta_08', label:'Laporan tahunan/keuangan diaudit', match:['pengungkapan laporan tahunan/laporan keuangan yang telah diaudit'] },
+      { id:'ta_09', label:'Akses informasi bagi stakeholder', match:['mekanisme dan akses atas informasi perusahaan bagi stakeholder'] },
+      { id:'ta_10', label:'Hak karyawan remunerasi & kesejahteraan', match:['pemenuhan hak karyawan terkait remunerasi dan kesejahteraan'] },
+      { id:'ta_11', label:'Praktik ketenagakerjaan setara & inklusif', match:['pengembangan praktik ketenagakerjaan yang setara, adil dan inklusif'] },
+      { id:'ta_12', label:'Keterlibatan Pemegang Saham dlm keputusan strategis', match:['mekanisme keterlibatan pemegang saham dalam mengesahkan pengambilan keputusan'] },
+      { id:'ta_13', label:'Pemilihan pemasok (vendor)', match:['mekanisme pemilihan pemasok (vendor) dalam pengadaan barang'] },
+    ]},
+  { id:'ke', name:'Kolaborasi Ekosistem, Keberlanjutan, Inovasi, dan Penciptaan Nilai',
+    gateMatch:['kolaborasi ekosistem, keberlanjutan, inovasi, dan penciptaan nilai'],
+    items:[
+      { id:'ke_01', label:'Koordinasi & kolaborasi mitra', match:['mekanisme koordinasi dan kolaborasi para mitra dalam ekosistem bisnis'] },
+      { id:'ke_02', label:'Kreativitas & inovasi', match:['mekanisme pengembangan kreativitas dan inovasi untuk mendukung pembangunan ekosistem bisnis'] },
+      { id:'ke_03', label:'Praktik bisnis berbasis ESG', match:['hasil dalam menjalankan praktik bisnis berkelanjutan berbasis environmental'] },
+      { id:'ke_04', label:'Integrasi SDGs ke strategi', match:['integrasi tujuan sustainable development goals'] },
+      { id:'ke_05', label:'Pembagian manfaat (benefit sharing)', match:['mekanisme pembagian manfaat (benefit sharing) yang adil'] },
+      { id:'ke_06', label:'Pengelolaan dampak sosial & lingkungan', match:['pengelolaan dampak sosial dan lingkungan yang timbul dari aktivitas perusahaan'] },
+      { id:'ke_07', label:'Kolaborasi tingkatkan ketahanan bisnis', match:['kolaborasi dalam ekosistem bisnis meningkatkan ketahanan (business resilience)'] },
+      { id:'ke_08', label:'Struktur jaringan mitra & akuntabilitas', match:['struktur jaringan mitra dan mekanisme akuntabilitas dalam pengelolaan hubungan kolaboratif'] },
+      { id:'ke_09', label:'Penciptaan nilai bersama (co-creation)', match:['mekanisme penciptaan nilai bersama (co-creation of value)'] },
+      { id:'ke_10', label:'Struktur & mekanisme kelola hubungan pemangku kepentingan', match:['kelengkapan struktur organisasi dan mekanisme formal dalam mengelola hubungan dengan pemasok'] },
+      { id:'ke_11', label:'Dampak ekosistem thd daya saing', match:['dampak pengembangan ekosistem bisnis terhadap daya saing perusahaan dan para mitra'] },
+      { id:'ke_12', label:'Inovasi dari kolaborasi tambah nilai', match:['inovasi yang dihasilkan melalui kolaborasi dalam ekosistem bisnis memberikan nilai tambah'] },
+      { id:'ke_13', label:'Manfaat pengembangan ekosistem dlm kerangka GCG', match:['manfaat yang dihasilkan dari pengembangan ekosistem bisnis dalam kerangka gcg'] },
+    ]},
+];
+function flattenAspectDefs(){
+  const out = [];
+  for(const a of ASPECTS){
+    out.push({ id:a.id+'_gate', match:a.gateMatch });
+    for(const it of a.items) out.push({ id:it.id, match:it.match });
+  }
+  return out;
+}
+const ALL_FIELD_DEFS = FIELD_DEFS.concat(flattenAspectDefs());
+
+/* ================= STATE ================= */
+let account = null, graphToken = null, listId = null, siteId = null, listDisplayName = '';
+let columnMap = {};   // FIELD_DEFS.id -> SharePoint internal field name
+let items = [];        // raw list items with .fields and .createdDateTime
+let charts = {};
+
+const msalInstance = new msal.PublicClientApplication({
+  auth:{
+    clientId: CONFIG.clientId,
+    authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
+    redirectUri: window.location.origin + window.location.pathname
+  },
+  cache:{ cacheLocation:'sessionStorage', storeAuthStateInCookie:true }
+});
+
+/* ================= UI HELPERS ================= */
+function showStatus(msg, isErr, raw){
+  const p = document.getElementById('status-panel');
+  p.classList.add('show'); p.classList.toggle('err', !!isErr);
+  document.getElementById('status-msg').textContent = msg;
+  const t = document.getElementById('status-tech');
+  if(raw){ t.style.display='block'; document.getElementById('status-raw').textContent = raw; }
+  else { t.style.display='none'; }
+}
+function hideStatus(){ document.getElementById('status-panel').classList.remove('show'); }
+function setSync(state, text){
+  document.getElementById('sync-line').style.display = 'flex';
+  document.getElementById('sync-dot').className = 'dot ' + (state||'');
+  document.getElementById('sync-text').textContent = text;
+}
+
+/* ================= AUTH ================= */
+async function ensureToken(){
+  const accounts = msalInstance.getAllAccounts();
+  if(accounts.length){ account = accounts[0]; }
+  if(account){
+    try{
+      const r = await msalInstance.acquireTokenSilent({ scopes: CONFIG.scopes, account });
+      return r.accessToken;
+    }catch(e){ /* fall through to interactive */ }
+  }
+  const r = await msalInstance.loginPopup({ scopes: CONFIG.scopes });
+  account = r.account;
+  const r2 = await msalInstance.acquireTokenSilent({ scopes: CONFIG.scopes, account });
+  return r2.accessToken;
+}
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  try{
+    document.getElementById('btn-login').textContent = 'Masuk…';
+    graphToken = await ensureToken();
+    document.getElementById('auth-controls').innerHTML =
+      `<span style="font-weight:600;color:var(--navy)">${(account && account.name) || 'Masuk'}</span>`;
+    document.getElementById('btn-refresh').style.display = 'inline-block';
+    await runLoad();
+    setInterval(refreshData, CONFIG.autoRefreshMs);
+  }catch(e){
+    showStatus('Gagal masuk dengan akun Microsoft. Coba lagi, atau periksa apakah pop-up diblokir browser.', true, String(e));
+  }
+});
+document.getElementById('btn-refresh').addEventListener('click', refreshData);
+
+/* ================= GRAPH ================= */
+async function graphGet(url){
+  const res = await fetch(url, { headers:{ Authorization: 'Bearer ' + graphToken } });
+  if(!res.ok){
+    const body = await res.text();
+    const err = new Error('Graph ' + res.status);
+    err.status = res.status; err.body = body;
+    throw err;
+  }
+  return res.json();
+}
+
+async function resolveSite(){
+  const url = `https://graph.microsoft.com/v1.0/sites/${CONFIG.siteHostname}:${CONFIG.sitePath}`;
+  const data = await graphGet(url);
+  siteId = data.id;
+}
+
+async function pickList(){
+  const data = await graphGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists?$select=id,displayName,list`);
+  const candidates = (data.value||[]).filter(l => l.list && l.list.template === 'genericList');
+  if(!candidates.length) throw new Error('Tidak ditemukan List bertipe generic di situs CGPI.');
+
+  // Score each candidate by how many known question fragments its columns match.
+  let best = null, bestScore = -1;
+  for(const c of candidates){
+    let cols = [];
+    try{
+      const colData = await graphGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${c.id}/columns?$select=displayName,name,hidden`);
+      cols = (colData.value||[]).filter(x => !x.hidden);
+    }catch(e){ continue; }
+    let score = 0;
+    for(const def of ALL_FIELD_DEFS){
+      const hit = cols.find(col => def.match.every(m => (col.displayName||'').toLowerCase().includes(m)));
+      if(hit) score++;
+    }
+    if(score > bestScore){ bestScore = score; best = { list:c, cols }; }
+  }
+  if(!best || bestScore === 0){
+    throw new Error('Tidak dapat mencocokkan kolom List dengan pertanyaan angket yang dikenal. List yang ditemukan: ' +
+      candidates.map(c=>c.displayName).join(', '));
+  }
+  listId = best.list.id;
+  listDisplayName = best.list.displayName;
+  columnMap = {};
+  for(const def of ALL_FIELD_DEFS){
+    const hit = best.cols.find(col => def.match.every(m => (col.displayName||'').toLowerCase().includes(m)));
+    if(hit) columnMap[def.id] = hit.name;
+  }
+}
+
+async function fetchAllItems(){
+  let url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=200`;
+  let all = [];
+  while(url){
+    const data = await graphGet(url);
+    all = all.concat(data.value||[]);
+    url = data['@odata.nextLink'] || null;
+  }
+  return all;
+}
+
+/* ================= LOAD / REFRESH ================= */
+async function runLoad(){
+  document.getElementById('loading-line').style.display = 'block';
+  hideStatus();
+  try{
+    if(!siteId) await resolveSite();
+    if(!listId) await pickList();
+    items = await fetchAllItems();
+    document.getElementById('list-name-tag').textContent = 'List: ' + listDisplayName + ' · ' + items.length + ' entri';
+    render();
+    document.getElementById('app-body').classList.add('show');
+    setSync('', 'Tersinkron ' + new Date().toLocaleTimeString('id-ID'));
+  }catch(e){
+    handleLoadError(e);
+  }finally{
+    document.getElementById('loading-line').style.display = 'none';
+  }
+}
+
+async function refreshData(){
+  setSync('stale', 'Menyegarkan…');
+  try{
+    items = await fetchAllItems();
+    document.getElementById('list-name-tag').textContent = 'List: ' + listDisplayName + ' · ' + items.length + ' entri';
+    render();
+    setSync('', 'Tersinkron ' + new Date().toLocaleTimeString('id-ID'));
+  }catch(e){
+    handleLoadError(e);
+    setSync('off', 'Gagal menyegarkan');
+  }
+}
+
+function handleLoadError(e){
+  if(e.status === 403){
+    showStatus('Akses ditolak oleh SharePoint. Akun Anda mungkin belum memiliki izin membaca situs "CGPI", atau App Registration (client ID 423fdc02…) belum memiliki izin Sites.Read.All ke situs ini. Minta IT menambahkan izin tersebut, atau minta pemilik situs membagikan akses ke akun Anda.', true, e.body||'');
+  }else if(e.status === 404){
+    showStatus('Situs atau List tidak ditemukan pada alamat yang dikonfigurasi. Periksa kembali nama situs SharePoint.', true, e.body||'');
+  }else{
+    showStatus('Terjadi kendala saat memuat data. ' + e.message, true, e.body||String(e));
+  }
+}
+
+/* ================= FIELD ACCESS ================= */
+function raw(item, id){
+  const col = columnMap[id];
+  if(!col) return null;
+  const v = item.fields ? item.fields[col] : null;
+  return (v===undefined || v===null || v==='') ? null : v;
+}
+function multiValues(item, id){
+  const v = raw(item, id);
+  if(v===null) return [];
+  return String(v).split(/[;,]+/).map(s=>s.replace(/#/g,'').trim()).filter(Boolean);
+}
+function tally(id, {top=8, groupRest=true, filter=null} = {}){
+  const counts = {};
+  for(const it of items){
+    if(filter && !filter(it)) continue;
+    const v = raw(it, id);
+    if(v===null) continue;
+    counts[v] = (counts[v]||0) + 1;
+  }
+  let entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if(top && entries.length > top){
+    const head = entries.slice(0, top-1);
+    const restTotal = entries.slice(top-1).reduce((s,e)=>s+e[1],0);
+    entries = groupRest ? head.concat([['Lainnya', restTotal]]) : entries.slice(0, top);
+  }
+  return entries;
+}
+function tallyOrdered(id, order, filter=null){
+  const counts = {}; order.forEach(o => counts[o]=0);
+  for(const it of items){
+    if(filter && !filter(it)) continue;
+    const v = raw(it, id);
+    if(v===null) continue;
+    if(counts[v]===undefined) counts[v]=0;
+    counts[v]++;
+  }
+  const keys = order.filter(o => counts[o]!==undefined).concat(Object.keys(counts).filter(k=>!order.includes(k)));
+  return keys.map(k => [k, counts[k]||0]);
+}
+/* ================= DATA QUALITY ================= */
+const JUNK_WORDS = ['test','tes','testing','coba','asdf','asd','xxx','xx','qwerty','tidak ada','n/a','na','-','.','...','abc','123','ok','oke'];
+function normalizeEmail(v){ return v ? String(v).trim().toLowerCase() : ''; }
+function isSuspiciousText(v){
+  if(v===null || v===undefined) return false;
+  const s = String(v).trim();
+  if(!s) return false;
+  const low = s.toLowerCase();
+  if(s.length < 2) return true;
+  if(/^[\d\W_]+$/.test(s)) return true;                       // hanya angka/simbol
+  if(/^(.)\1{2,}$/.test(s.replace(/\s/g,''))) return true;      // karakter berulang, mis. "aaaa"
+  if(JUNK_WORDS.includes(low)) return true;
+  return false;
+}
+function isValidEmailFormat(v){
+  if(!v) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
+}
+function computeQualityFlags(){
+  const emailGroups = {};
+  for(const it of items){
+    const email = normalizeEmail(raw(it,'email'));
+    if(email) (emailGroups[email] = emailGroups[email]||[]).push(it);
+  }
+  const flagged = [];
+  for(const it of items){
+    const reasons = [];
+    const emailVal = raw(it,'email');
+    const nama = raw(it,'nama');
+    const asal = raw(it,'asal_instansi');
+    const divisi = raw(it,'divisi');
+    if(emailVal){
+      const norm = normalizeEmail(emailVal);
+      if(emailGroups[norm] && emailGroups[norm].length > 1) reasons.push('Email terdaftar lebih dari satu kali');
+      if(!isValidEmailFormat(emailVal)) reasons.push('Format email tidak valid');
+    }
+    if(isSuspiciousText(nama)) reasons.push('Isian nama tidak wajar');
+    if(isExternal(it) && isSuspiciousText(asal)) reasons.push('Isian asal perusahaan/instansi tidak wajar');
+    if(isInternal(it) && isSuspiciousText(divisi)) reasons.push('Isian bagian/divisi tidak wajar');
+    if(reasons.length){
+      flagged.push({
+        nama: nama || '(tanpa nama)',
+        email: emailVal || '-',
+        reasons,
+        date: (it.createdDateTime||'').slice(0,10)
+      });
+    }
+  }
+  return flagged;
+}
+function reasonTally(flaggedList){
+  const counts = {};
+  for(const f of flaggedList) for(const r of f.reasons) counts[r] = (counts[r]||0) + 1;
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+
+function isInternal(it){
+  const v = raw(it,'kriteria');
+  return v && v.toLowerCase().startsWith('internal');
+}
+function isExternal(it){
+  const v = raw(it,'kriteria');
+  return v && v.toLowerCase().startsWith('eksternal');
+}
+
+/* ================= GCG SELF-ASSESSMENT SCORING ================= */
+function isDetailChosen(val){ return !!val && /detil|detail/i.test(val); }
+function toScore(val){
+  if(val===null || val===undefined || val==='') return null;
+  const n = parseFloat(val);
+  return isNaN(n) ? null : n;
+}
+function computeAspectStats(aspect){
+  let answered = 0, detailCount = 0, blanketCount = 0;
+  for(const it of items){
+    const g = raw(it, aspect.id+'_gate');
+    if(g===null) continue;
+    answered++;
+    if(isDetailChosen(g)) detailCount++; else blanketCount++;
+  }
+  const itemStats = aspect.items.map(def => {
+    let sum = 0, n = 0;
+    for(const it of items){
+      const s = toScore(raw(it, def.id));
+      if(s===null) continue;
+      sum += s; n++;
+    }
+    return { id:def.id, label:def.label, avg: n ? sum/n : null, n };
+  });
+  const validAvgs = itemStats.filter(s => s.avg!==null).map(s => s.avg);
+  const aspectAvg = validAvgs.length ? validAvgs.reduce((a,b)=>a+b,0)/validAvgs.length : null;
+  return { name:aspect.name, itemStats, aspectAvg, answered, detailCount, blanketCount };
+}
+/* ================= CHART HELPERS ================= */
+const PALETTE = ['#0B1F3A','#B8933E','#2F6F63','#8C9AAE','#AE4430','#6B5B95','#C9A227','#4A6B8A'];
+function destroyIf(key){ if(charts[key]){ charts[key].destroy(); delete charts[key]; } }
+
+function barChart(canvasId, key, entries, horizontal){
+  destroyIf(key);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[key] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels: entries.map(e=>e[0]),
+      datasets:[{ data: entries.map(e=>e[1]), backgroundColor: PALETTE[0], borderRadius:2, maxBarThickness:28 }]},
+    options:{
+      indexAxis: horizontal ? 'y' : 'x',
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ grid:{ display: horizontal }, ticks:{ font:{ family:'Inter', size:11 } } },
+        y:{ grid:{ display: !horizontal }, ticks:{ font:{ family:'Inter', size:11 } } }
+      },
+      responsive:true, maintainAspectRatio:false
+    }
+  });
+}
+function doughnutChart(canvasId, key, entries){
+  destroyIf(key);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[key] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels: entries.map(e=>e[0]),
+      datasets:[{ data: entries.map(e=>e[1]), backgroundColor: PALETTE, borderWidth:1, borderColor:'#fff' }]},
+    options:{
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } } },
+      responsive:true, maintainAspectRatio:false, cutout:'62%'
+    }
+  });
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function tableFromEntries(containerId, entries, cols){
+  const max = Math.max(1, ...entries.map(e=>e[1]));
+  let html = `<table class="dist"><thead><tr><th>${cols[0]}</th><th style="text-align:right">${cols[1]}</th></tr></thead><tbody>`;
+  for(const [label, n] of entries){
+    const pct = Math.round(n/max*100);
+    html += `<tr><td>${escapeHtml(label)}<div class="bar-inline"><i style="width:${pct}%"></i></div></td><td class="n">${n}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById(containerId).innerHTML = html;
+}
+function renderFlaggedTable(containerId, flaggedList){
+  if(!flaggedList.length){
+    document.getElementById(containerId).innerHTML = '<p class="note">Tidak ada entri yang menunjukkan indikasi kualitas rendah pada pemeriksaan saat ini.</p>';
+    return;
+  }
+  let html = '<table class="dist"><thead><tr><th>Nama</th><th>Email</th><th>Alasan</th><th style="text-align:right">Tanggal</th></tr></thead><tbody>';
+  const shown = flaggedList.slice(0, 50);
+  for(const f of shown){
+    html += `<tr><td>${escapeHtml(f.nama)}</td><td>${escapeHtml(f.email)}</td><td>${escapeHtml(f.reasons.join('; '))}</td><td class="n">${f.date||'-'}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  if(flaggedList.length > shown.length){
+    html += `<div class="note">Menampilkan 50 dari ${flaggedList.length} entri yang ditandai.</div>`;
+  }
+  document.getElementById(containerId).innerHTML = html;
+}
+
+function renderAspectAnalytics(){
+  const stats = ASPECTS.map(computeAspectStats);
+
+  const withScore = stats.filter(s => s.aspectAvg!==null);
+  const overall = withScore.length ? withScore.reduce((a,s)=>a+s.aspectAvg,0)/withScore.length : null;
+  document.getElementById('m-aspect-overall').innerHTML = (overall!==null ? overall.toFixed(1) : '—') + '<small> / 10</small>';
+
+  const totalAnswered = stats.reduce((a,s)=>a+s.answered,0);
+  const totalDetail = stats.reduce((a,s)=>a+s.detailCount,0);
+  document.getElementById('m-aspect-detail-pct').innerHTML =
+    (totalAnswered ? Math.round(totalDetail/totalAnswered*100) : 0) + '<small>%</small>';
+
+  const lowest = withScore.slice().sort((a,b)=>a.aspectAvg-b.aspectAvg)[0];
+  document.getElementById('m-aspect-lowest').textContent = lowest ? lowest.name.split(',')[0] : '—';
+
+  destroyIf('aspectavg');
+  const avgCtx = document.getElementById('chart-aspect-avg').getContext('2d');
+  charts.aspectavg = new Chart(avgCtx, {
+    type:'bar',
+    data:{
+      labels: stats.map(s => s.name.split(',')[0]),
+      datasets:[{ data: stats.map(s => s.aspectAvg), backgroundColor: PALETTE[0], borderRadius:2, maxBarThickness:46 }]
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ min:0, max:10, ticks:{ font:{ size:11 } } }, y:{ ticks:{ font:{ size:11.5 } } } },
+      responsive:true, maintainAspectRatio:false
+    }
+  });
+
+  const container = document.getElementById('aspect-detail-container');
+  container.innerHTML = '';
+  stats.forEach((s, idx) => {
+    const panel = document.createElement('div');
+    panel.className = 'panel aspect-panel';
+    const canvasId = 'chart-aspect-item-' + ASPECTS[idx].id;
+    const avgTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
+    panel.innerHTML =
+      `<h3>${s.name}</h3>
+       <div class="aspect-stats">Skor rata-rata indikator: <b>${avgTxt} / 10</b> &nbsp;·&nbsp;
+       ${s.answered} responden menjawab aspek ini (${s.detailCount} menilai detail, ${s.blanketCount} memilih "sangat baik" tanpa detail)</div>
+       <div class="chart-box" style="height:${Math.max(180, s.itemStats.length*24)}px;"><canvas id="${canvasId}"></canvas></div>`;
+    container.appendChild(panel);
+
+    const sorted = s.itemStats.slice().sort((a,b) => (a.avg===null?99:a.avg) - (b.avg===null?99:b.avg));
+    destroyIf('aspectitem_'+ASPECTS[idx].id);
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    charts['aspectitem_'+ASPECTS[idx].id] = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels: sorted.map(x => x.label),
+        datasets:[{ data: sorted.map(x => x.avg), backgroundColor: PALETTE[idx % PALETTE.length], borderRadius:2, maxBarThickness:16 }]
+      },
+      options:{
+        indexAxis:'y',
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ min:0, max:10, ticks:{ font:{ size:10.5 } } }, y:{ ticks:{ font:{ size:10.5 } } } },
+        responsive:true, maintainAspectRatio:false
+      }
+    });
+  });
+}
+
+/* ================= RENDER ================= */
+function render(){
+  const total = items.length;
+  const pct = Math.min(100, Math.round(total / CONFIG.targetRespondents * 100));
+  document.getElementById('m-total').innerHTML = total + '<small> / ' + CONFIG.targetRespondents + '</small>';
+  document.getElementById('m-pct').innerHTML = pct + '<small>%</small>';
+
+  const now = new Date();
+  const daysLeft = Math.max(0, Math.ceil((CONFIG.deadline - now) / 86400000));
+  document.getElementById('m-days').textContent = daysLeft;
+
+  // Daily counts from createdDateTime
+  const dayMap = {};
+  for(const it of items){
+    const d = (it.createdDateTime||'').slice(0,10);
+    if(!d) continue;
+    dayMap[d] = (dayMap[d]||0) + 1;
+  }
+  const days = Object.keys(dayMap).sort();
+  let cumulative = 0;
+  const cumSeries = days.map(d => { cumulative += dayMap[d]; return cumulative; });
+
+  const last7 = days.slice(-7);
+  const last7Total = last7.reduce((s,d)=>s+dayMap[d],0);
+  const avgPerDay = last7.length ? last7Total/last7.length : 0;
+  document.getElementById('m-rate').textContent = avgPerDay.toFixed(1);
+
+  const projected = Math.round(total + avgPerDay * daysLeft);
+  const noteEl = document.getElementById('projection-note');
+  if(days.length){
+    const status = projected >= CONFIG.targetRespondents ? 'sejalan untuk mencapai' : 'berisiko tidak mencapai';
+    noteEl.textContent = `Pada laju rata-rata ${avgPerDay.toFixed(1)} responden/hari (7 hari terakhir), proyeksi total pada 30 September 2026 adalah sekitar ${projected} responden — ${status} target 186.`;
+  }else{
+    noteEl.textContent = 'Belum cukup data harian untuk menghitung proyeksi.';
+  }
+
+  destroyIf('trend');
+  const trendCtx = document.getElementById('chart-trend').getContext('2d');
+  charts.trend = new Chart(trendCtx, {
+    type:'line',
+    data:{
+      labels: days,
+      datasets:[
+        { label:'Responden kumulatif', data: cumSeries, borderColor: PALETTE[0], backgroundColor:'transparent', tension:0.15, pointRadius:2 },
+        { label:'Target (186)', data: days.map(()=>CONFIG.targetRespondents), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 } } } },
+      scales:{ x:{ ticks:{ maxTicksLimit:10, font:{ size:10 } } }, y:{ beginAtZero:true } }
+    }
+  });
+
+  renderAspectAnalytics();
+
+  doughnutChart('chart-internal-eksternal', 'ie',
+    [['Internal MCI', items.filter(isInternal).length], ['Eksternal', items.filter(isExternal).length]]);
+  doughnutChart('chart-gender', 'gender', tally('gender', {top:6}));
+  barChart('chart-age', 'age', tallyOrdered('age', FIELD_DEFS.find(f=>f.id==='age').order));
+
+  barChart('chart-eksternal-kategori', 'ekat', tally('eksternal_kat', {top:8, filter:isExternal}), true);
+  tableFromEntries('tbl-asal-instansi', tally('asal_instansi', {top:10, filter:isExternal}), ['Perusahaan/Instansi','Responden']);
+
+  barChart('chart-pendidikan', 'pend', tallyOrdered('pendidikan', FIELD_DEFS.find(f=>f.id==='pendidikan').order), true);
+  barChart('chart-bidang', 'bidang', tally('bidang', {top:7}), true);
+
+  tableFromEntries('tbl-jabatan', tally('jabatan', {top:10}), ['Jabatan','Responden']);
+  barChart('chart-lama-menjabat', 'lm', tallyOrdered('lama_menjabat', FIELD_DEFS.find(f=>f.id==='lama_menjabat').order));
+  doughnutChart('chart-lokasi', 'lokasi', tally('lokasi', {top:4}));
+
+  const divisi = tally('divisi', {top:999, groupRest:false, filter:isInternal}).sort((a,b)=>a[1]-b[1]);
+  tableFromEntries('tbl-divisi', divisi, ['Bagian / Divisi','Responden']);
+
+  const flagged = computeQualityFlags();
+  document.getElementById('m-flagged').textContent = flagged.length;
+  document.getElementById('m-flagged-pct').innerHTML = (total ? Math.round(flagged.length/total*100) : 0) + '<small>%</small>';
+  barChart('chart-flag-reason', 'flagreason', reasonTally(flagged), true);
+  renderFlaggedTable('tbl-flagged', flagged);
+}
+
+})();
+</script>
+</body>
+</html>
