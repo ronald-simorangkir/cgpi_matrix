@@ -61,6 +61,18 @@
   details.tech pre{white-space:pre-wrap; font-size:11px; background:#f1f0ea; padding:8px; border-radius:3px;}
 
   section{margin-bottom:34px;}
+  .bagian-header{
+    display:flex; align-items:center; gap:12px; margin:40px 0 18px;
+  }
+  .bagian-header:first-of-type{margin-top:8px;}
+  .bagian-num{
+    width:30px; height:30px; border-radius:50%; background:var(--navy); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;
+    font-family:'Source Serif 4',Georgia,serif; flex-shrink:0;
+  }
+  .bagian-title{
+    font-family:'Source Serif 4',Georgia,serif; font-size:22px; font-weight:700; color:var(--navy);
+  }
   h2.section-title{
     font-family:'Source Serif 4',Georgia,serif; font-size:19px; font-weight:600;
     color:var(--navy); margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line);
@@ -153,6 +165,7 @@
 
   <div id="app-body">
 
+    <div class="bagian-header"><span class="bagian-num">1</span><span class="bagian-title">Statistik Responden</span></div>
     <section>
       <div class="card-row">
         <div class="metric-card accent">
@@ -173,7 +186,6 @@
         </div>
       </div>
     </section>
-
     <section>
       <h2 class="section-title">Tren Pengumpulan &amp; Proyeksi</h2>
       <div class="panel">
@@ -181,95 +193,6 @@
         <div class="note" id="projection-note"></div>
       </div>
     </section>
-
-    <section>
-      <h2 class="section-title">Analitik Penilaian GCG (Skor Self-Assessment)</h2>
-      <div class="card-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:14px;">
-        <div class="metric-card accent">
-          <div class="num" id="m-aspect-overall">—<small> / 10</small></div>
-          <div class="lbl">Skor rata-rata gabungan, 5 aspek</div>
-        </div>
-        <div class="metric-card">
-          <div class="num" id="m-aspect-detail-pct">—<small>%</small></div>
-          <div class="lbl">Rata-rata proporsi responden yang menilai secara detail (bukan sekadar "sangat baik")</div>
-        </div>
-        <div class="metric-card">
-          <div class="num" id="m-aspect-lowest">—</div>
-          <div class="lbl">Aspek dengan skor rata-rata terendah</div>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="chart-box"><canvas id="chart-aspect-avg"></canvas></div>
-        <div class="note">Skor rata-rata per aspek, skala 0–10, dihitung dari jawaban responden yang memilih penilaian detail. Responden yang memilih "sangat baik" tanpa detail dihitung terpisah dan tidak masuk rata-rata ini.</div>
-      </div>
-      <div id="aspect-detail-container" style="margin-top:16px; display:flex; flex-direction:column; gap:16px;"></div>
-    </section>
-
-    <section>
-      <h2 class="section-title">Komposisi Responden</h2>
-      <div class="grid-3">
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-internal-eksternal"></canvas></div>
-          <div class="note">Internal MCI (pegawai, Direksi, Dewan Komisaris) vs pihak eksternal ekosistem</div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-gender"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-age"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2 class="section-title">Kategori Pihak Eksternal</h2>
-      <div class="grid-2">
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-eksternal-kategori"></canvas></div>
-        </div>
-        <div class="panel">
-          <div id="tbl-asal-instansi"></div>
-          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat (pihak eksternal)</div>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2 class="section-title">Latar Belakang Pendidikan</h2>
-      <div class="grid-2">
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-pendidikan"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-bidang"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2 class="section-title">Latar Belakang Pekerjaan</h2>
-      <div class="grid-3">
-        <div class="panel">
-          <div id="tbl-jabatan"></div>
-          <div class="note">Pilihan jabatan, seluruh responden</div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-lama-menjabat"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-lokasi"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2 class="section-title">Sebaran per Bagian / Divisi (Internal MCI)</h2>
-      <div class="panel">
-        <div id="tbl-divisi"></div>
-        <div class="note">Diurutkan dari jumlah responden tersedikit, untuk membantu identifikasi unit yang perlu didorong mengisi</div>
-      </div>
-    </section>
-
     <section>
       <h2 class="section-title">Kualitas Data — Entri Perlu Verifikasi</h2>
       <div class="grid-2">
@@ -291,6 +214,95 @@
           <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis untuk mengeluarkan data. Perlu verifikasi manual oleh panitia sebelum entri ini dikecualikan dari rekap akhir.</div>
         </div>
       </div>
+    </section>
+    <div class="bagian-header"><span class="bagian-num">2</span><span class="bagian-title">Demografi Responden</span></div>
+    <section>
+      <h2 class="section-title">Komposisi Responden</h2>
+      <div class="grid-3">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-internal-eksternal"></canvas></div>
+          <div class="note">Internal MCI (pegawai, Direksi, Dewan Komisaris) vs pihak eksternal ekosistem</div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-gender"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-age"></canvas></div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Kategori Pihak Eksternal</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-eksternal-kategori"></canvas></div>
+        </div>
+        <div class="panel">
+          <div id="tbl-asal-instansi"></div>
+          <div class="note">Asal perusahaan / instansi yang paling banyak tercatat (pihak eksternal)</div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Latar Belakang Pendidikan</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-pendidikan"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-bidang"></canvas></div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Latar Belakang Pekerjaan</h2>
+      <div class="grid-3">
+        <div class="panel">
+          <div id="tbl-jabatan"></div>
+          <div class="note">Pilihan jabatan, seluruh responden</div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-lama-menjabat"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="chart-box"><canvas id="chart-lokasi"></canvas></div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Sebaran per Bagian / Divisi (Internal MCI)</h2>
+      <div class="panel">
+        <div id="tbl-divisi"></div>
+        <div class="note">Diurutkan dari jumlah responden tersedikit, untuk membantu identifikasi unit yang perlu didorong mengisi</div>
+      </div>
+    </section>
+    <div class="bagian-header"><span class="bagian-num">3</span><span class="bagian-title">Penilaian Aspek GCG</span></div>
+    <section>
+      <h2 class="section-title">Penilaian Aspek GCG</h2>
+      <div class="card-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:14px;">
+        <div class="metric-card accent">
+          <div class="num" id="m-aspect-overall">—<small> / 100</small></div>
+          <div class="lbl">Skor rata-rata gabungan, 5 aspek</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-aspect-detail-pct">—<small>%</small></div>
+          <div class="lbl">Rata-rata proporsi responden yang menilai secara detail (bukan sekadar "sangat baik")</div>
+        </div>
+        <div class="metric-card">
+          <div class="num" id="m-aspect-lowest">—</div>
+          <div class="lbl">Aspek dengan skor rata-rata terendah</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:16px;">
+        <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Responden Detail vs Non-Detail per Aspek</h3>
+        <div id="tbl-detail-summary"></div>
+      </div>
+      <div class="panel">
+        <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15.5px; font-weight:600; color:var(--navy); margin:0 0 10px;">Skor Rata-rata per Aspek (skala 0–100)</h3>
+        <div class="chart-box"><canvas id="chart-aspect-avg"></canvas></div>
+        <div class="note">Menggabungkan responden yang menilai detail (rata-rata indikator, dikonversi ke skala 0–100) dan yang memilih "sangat baik" tanpa detail (dinilai penuh, 100).</div>
+      </div>
+      <div id="aspect-detail-container" style="margin-top:16px; display:flex; flex-direction:column; gap:16px;"></div>
     </section>
 
   </div>
@@ -801,12 +813,31 @@ function toScore(val){
 }
 function computeAspectStats(aspect){
   let answered = 0, detailCount = 0, blanketCount = 0;
+  const respondentScores = []; // per-respondent aspect score, 0-100 scale, detail + non-detail combined
   for(const it of items){
     const g = raw(it, aspect.id+'_gate');
     if(g===null) continue;
     answered++;
-    if(isDetailChosen(g)) detailCount++; else blanketCount++;
+    if(isDetailChosen(g)){
+      detailCount++;
+      let sum = 0, n = 0;
+      for(const def of aspect.items){
+        const s = toScore(raw(it, def.id));
+        if(s===null) continue;
+        sum += s; n++;
+      }
+      if(n > 0) respondentScores.push((sum/n) * 10); // 0-10 -> 0-100
+    }else{
+      blanketCount++;
+      respondentScores.push(100); // "sangat baik" tanpa detail dinilai penuh
+    }
   }
+  const aspectAvg = respondentScores.length
+    ? respondentScores.reduce((a,b)=>a+b,0)/respondentScores.length
+    : null;
+
+  // Item-level averages (0-10) stay based only on respondents who answered that
+  // specific indicator, for pinpointing the weakest indicators within an aspect.
   const itemStats = aspect.items.map(def => {
     let sum = 0, n = 0;
     for(const it of items){
@@ -816,8 +847,6 @@ function computeAspectStats(aspect){
     }
     return { id:def.id, label:def.label, avg: n ? sum/n : null, n };
   });
-  const validAvgs = itemStats.filter(s => s.avg!==null).map(s => s.avg);
-  const aspectAvg = validAvgs.length ? validAvgs.reduce((a,b)=>a+b,0)/validAvgs.length : null;
   return { name:aspect.name, itemStats, aspectAvg, answered, detailCount, blanketCount };
 }
 /* ================= CHART HELPERS ================= */
@@ -890,7 +919,7 @@ function renderAspectAnalytics(){
 
   const withScore = stats.filter(s => s.aspectAvg!==null);
   const overall = withScore.length ? withScore.reduce((a,s)=>a+s.aspectAvg,0)/withScore.length : null;
-  document.getElementById('m-aspect-overall').innerHTML = (overall!==null ? overall.toFixed(1) : '—') + '<small> / 10</small>';
+  document.getElementById('m-aspect-overall').innerHTML = (overall!==null ? overall.toFixed(1) : '—') + '<small> / 100</small>';
 
   const totalAnswered = stats.reduce((a,s)=>a+s.answered,0);
   const totalDetail = stats.reduce((a,s)=>a+s.detailCount,0);
@@ -899,6 +928,18 @@ function renderAspectAnalytics(){
 
   const lowest = withScore.slice().sort((a,b)=>a.aspectAvg-b.aspectAvg)[0];
   document.getElementById('m-aspect-lowest').textContent = lowest ? lowest.name.split(',')[0] : '—';
+
+  // Ringkasan pilihan detail vs non-detail per aspek
+  let dvHtml = '<table class="dist"><thead><tr><th>Aspek</th><th style="text-align:right">Menjawab</th><th style="text-align:right">Detail</th><th style="text-align:right">Sangat baik (non-detail)</th></tr></thead><tbody>';
+  stats.forEach(s => {
+    const detailPct = s.answered ? Math.round(s.detailCount/s.answered*100) : 0;
+    const blanketPct = s.answered ? Math.round(s.blanketCount/s.answered*100) : 0;
+    dvHtml += `<tr><td>${escapeHtml(s.name)}</td><td class="n">${s.answered}</td>` +
+      `<td class="n">${s.detailCount} (${detailPct}%)</td>` +
+      `<td class="n">${s.blanketCount} (${blanketPct}%)</td></tr>`;
+  });
+  dvHtml += '</tbody></table>';
+  document.getElementById('tbl-detail-summary').innerHTML = dvHtml;
 
   destroyIf('aspectavg');
   const avgCtx = document.getElementById('chart-aspect-avg').getContext('2d');
@@ -911,7 +952,7 @@ function renderAspectAnalytics(){
     options:{
       indexAxis:'y',
       plugins:{ legend:{display:false} },
-      scales:{ x:{ min:0, max:10, ticks:{ font:{ size:11 } } }, y:{ ticks:{ font:{ size:11.5 } } } },
+      scales:{ x:{ min:0, max:100, ticks:{ font:{ size:11 } } }, y:{ ticks:{ font:{ size:11.5 } } } },
       responsive:true, maintainAspectRatio:false
     }
   });
@@ -925,9 +966,10 @@ function renderAspectAnalytics(){
     const avgTxt = s.aspectAvg!==null ? s.aspectAvg.toFixed(1) : '—';
     panel.innerHTML =
       `<h3>${s.name}</h3>
-       <div class="aspect-stats">Skor rata-rata indikator: <b>${avgTxt} / 10</b> &nbsp;·&nbsp;
-       ${s.answered} responden menjawab aspek ini (${s.detailCount} menilai detail, ${s.blanketCount} memilih "sangat baik" tanpa detail)</div>
-       <div class="chart-box" style="height:${Math.max(180, s.itemStats.length*24)}px;"><canvas id="${canvasId}"></canvas></div>`;
+       <div class="aspect-stats">Skor aspek (gabungan detail + non-detail, skala 0–100): <b>${avgTxt} / 100</b> &nbsp;·&nbsp;
+       ${s.answered} responden menjawab aspek ini (${s.detailCount} menilai detail, ${s.blanketCount} memilih "sangat baik" tanpa detail, dinilai penuh)</div>
+       <div class="chart-box" style="height:${Math.max(180, s.itemStats.length*24)}px;"><canvas id="${canvasId}"></canvas></div>
+       <div class="note">Rincian per indikator di atas hanya dari responden yang menilai detail (skala 0–10), untuk melihat indikator mana yang paling lemah.</div>`;
     container.appendChild(panel);
 
     const sorted = s.itemStats.slice().sort((a,b) => (a.avg===null?99:a.avg) - (b.avg===null?99:b.avg));
