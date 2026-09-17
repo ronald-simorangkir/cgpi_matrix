@@ -220,24 +220,26 @@
           <div class="chart-box" style="height:190px; margin-top:14px;"><canvas id="chart-flag-reason"></canvas></div>
         </div>
         <div class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; color:var(--muted);">Centang "Kecualikan" untuk mengeluarkan entri dari seluruh statistik dan grafik di halaman ini. Perubahan tersimpan otomatis di browser ini.</span>
+            <button class="btn secondary" id="btn-reset-exclude" style="font-size:11px; padding:5px 10px; white-space:nowrap;">Reset semua</button>
+          </div>
           <div id="tbl-flagged"></div>
-          <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis untuk mengeluarkan data. Perlu verifikasi manual oleh panitia sebelum entri ini dikecualikan dari rekap akhir.</div>
+          <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis. Centang untuk mengecualikan setelah verifikasi manual.</div>
         </div>
       </div>
     </section>
     <div class="bagian-header"><span class="bagian-num">2</span><span class="bagian-title">Demografi Responden</span></div>
     <section>
       <h2 class="section-title">Komposisi Responden</h2>
-      <div class="grid-3">
+      <div class="grid-2">
         <div class="panel">
-          <div class="chart-box"><canvas id="chart-internal-eksternal"></canvas></div>
-          <div class="note">Kategori responden berdasarkan pihak yang diwakili</div>
+          <div class="chart-box" id="chart-box-ie"><canvas id="chart-internal-eksternal"></canvas></div>
+          <div class="note">Kategori responden berdasarkan pihak yang diwakili, Internal MCI selalu di atas</div>
         </div>
         <div class="panel">
-          <div class="chart-box"><canvas id="chart-gender"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-age"></canvas></div>
+          <div class="chart-box" style="height:260px;"><canvas id="chart-gender-age"></canvas></div>
+          <div class="note">Sebaran jenis kelamin per kelompok usia</div>
         </div>
       </div>
     </section>
@@ -250,6 +252,20 @@
         <div class="panel">
           <div id="tbl-asal-instansi"></div>
           <div class="note">Asal perusahaan / instansi yang paling banyak tercatat</div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Kelola Alias Nama Perusahaan</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Terdeteksi mirip</h3>
+          <div id="company-alias-suggestions"></div>
+        </div>
+        <div class="panel">
+          <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Alias aktif</h3>
+          <div id="company-alias-active"></div>
+          <div class="note">Deteksi berdasarkan kemiripan nama (mengabaikan "PT", "Tbk", "(Persero)", dan tanda baca). Centang varian yang ingin digabung, sesuaikan nama alias, lalu klik Terapkan. Tabel "Perusahaan/Instansi" di sebelah kiri otomatis mengikuti alias yang aktif.</div>
         </div>
       </div>
     </section>
@@ -516,9 +532,22 @@ let account = null, graphToken = null, listId = null, siteId = null, listDisplay
 let columnMap = {};   // FIELD_DEFS.id -> SharePoint internal field name
 let lastListColumns = null; // raw column list of the chosen SharePoint List, for diagnostics
 let allItems = [];     // raw list items with .fields and .createdDateTime, unfiltered
-let items = [];        // filtered view of allItems, driven by activeFilter
+let peranFilteredItems = []; // allItems minus the peran (internal/eksternal) filter only, used by the quality-review table
+let items = [];        // peranFilteredItems minus user-excluded entries; used by every other stat/chart
 let activeFilter = 'all'; // 'all' | 'internal' | 'eksternal'
 let charts = {};
+
+function loadJson(key, fallback){
+  try{ const v = JSON.parse(localStorage.getItem(key)); return v===null||v===undefined ? fallback : v; }
+  catch(e){ return fallback; }
+}
+function saveJson(key, val){
+  try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+}
+let excludedIds = new Set(loadJson('cgpi_excluded_ids', []));
+let companyAliases = loadJson('cgpi_company_aliases', {}); // { "raw name": "canonical name" }
+function saveExcluded(){ saveJson('cgpi_excluded_ids', [...excludedIds]); }
+function saveAliases(){ saveJson('cgpi_company_aliases', companyAliases); }
 
 const msalInstance = new msal.PublicClientApplication({
   auth:{
@@ -593,6 +622,12 @@ document.getElementById('btn-login').addEventListener('click', () => {
   });
 });
 document.getElementById('btn-refresh').addEventListener('click', refreshData);
+document.getElementById('btn-reset-exclude').addEventListener('click', () => {
+  excludedIds = new Set();
+  saveExcluded();
+  applyFilter();
+  render();
+});
 tryAutoLogin();
 
 /* ================= GRAPH ================= */
@@ -697,12 +732,16 @@ async function fetchAllItems(){
 
 /* ================= LOAD / REFRESH ================= */
 function applyFilter(){
-  if(activeFilter === 'all'){ items = allItems; return; }
-  items = allItems.filter(it => {
-    const v = (raw(it,'peran_responden') || '').toLowerCase();
-    const isInternal = v.startsWith('internal mci') || v === 'internal';
-    return activeFilter === 'internal' ? isInternal : !isInternal;
-  });
+  if(activeFilter === 'all'){
+    peranFilteredItems = allItems;
+  }else{
+    peranFilteredItems = allItems.filter(it => {
+      const v = (raw(it,'peran_responden') || '').toLowerCase();
+      const isInternal = v.startsWith('internal mci') || v === 'internal';
+      return activeFilter === 'internal' ? isInternal : !isInternal;
+    });
+  }
+  items = peranFilteredItems.filter(it => !excludedIds.has(it.id));
 }
 
 async function runLoad(){
@@ -795,6 +834,128 @@ function tallyOrdered(id, order, filter=null){
   const keys = order.filter(o => counts[o]!==undefined).concat(Object.keys(counts).filter(k=>!order.includes(k)));
   return keys.map(k => [k, counts[k]||0]);
 }
+function tallyPeranOrdered(){
+  const entries = tally('peran_responden', {top:999, groupRest:false});
+  const internal = entries.filter(e => e[0].toLowerCase().startsWith('internal'));
+  const rest = entries.filter(e => !e[0].toLowerCase().startsWith('internal')).sort((a,b)=>b[1]-a[1]);
+  return internal.concat(rest);
+}
+function genderAgeCross(){
+  const ageOrder = FIELD_DEFS.find(f=>f.id==='age').order;
+  const pria = ageOrder.map(()=>0), wanita = ageOrder.map(()=>0);
+  for(const it of items){
+    const age = raw(it,'age');
+    const idx = ageOrder.indexOf(age);
+    if(idx < 0) continue;
+    const g = (raw(it,'gender')||'').toLowerCase();
+    if(g.startsWith('pria')) pria[idx]++;
+    else if(g.startsWith('wanita')) wanita[idx]++;
+  }
+  return { ageOrder, pria, wanita };
+}
+/* ================= COMPANY NAME ALIASING ================= */
+function normalizeCompanyName(s){
+  return String(s||'')
+    .toLowerCase()
+    .replace(/\bpt\b\.?/g,' ')
+    .replace(/\btbk\b\.?/g,' ')
+    .replace(/\(persero\)/g,' ')
+    .replace(/[.,]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function canonicalCompany(rawName){
+  return companyAliases[rawName] || rawName;
+}
+function tallyCompany(){
+  const counts = {};
+  for(const it of items){
+    let v = raw(it,'asal_instansi');
+    if(v===null) continue;
+    v = canonicalCompany(v);
+    counts[v] = (counts[v]||0) + 1;
+  }
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+function distinctCompanyGroups(){
+  const rawCounts = {};
+  for(const it of items){
+    const v = raw(it,'asal_instansi');
+    if(v===null) continue;
+    rawCounts[v] = (rawCounts[v]||0) + 1;
+  }
+  const byNorm = {};
+  for(const name of Object.keys(rawCounts)){
+    const key = normalizeCompanyName(name);
+    if(!key) continue;
+    (byNorm[key] = byNorm[key]||[]).push({ name, count: rawCounts[name] });
+  }
+  return Object.values(byNorm)
+    .filter(g => g.length > 1)
+    .map(g => g.sort((a,b)=>b.count-a.count))
+    .sort((a,b) => b.reduce((s,m)=>s+m.count,0) - a.reduce((s,m)=>s+m.count,0));
+}
+function renderCompanyAliasPanel(){
+  const groups = distinctCompanyGroups();
+  const container = document.getElementById('company-alias-suggestions');
+  if(!groups.length){
+    container.innerHTML = '<p class="note">Tidak ada nama perusahaan yang terdeteksi mirip pada data responden saat ini.</p>';
+  }else{
+    let html = '';
+    groups.forEach((g, gi) => {
+      const defaultCanon = companyAliases[g[0].name] || g[0].name;
+      html += `<div style="border:1px solid var(--line); padding:10px; margin-bottom:10px;">
+        <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">Terdeteksi mirip, ${g.length} varian (total ${g.reduce((a,m)=>a+m.count,0)} responden):</div>`;
+      g.forEach(m => {
+        html += `<label style="display:block; font-size:12.5px; margin-bottom:3px;">
+          <input type="checkbox" class="alias-member" data-group="${gi}" data-name="${escapeHtml(m.name)}" checked>
+          ${escapeHtml(m.name)} <span style="color:var(--muted);">(${m.count})</span>
+        </label>`;
+      });
+      html += `<div style="display:flex; gap:6px; margin-top:8px;">
+        <input type="text" class="alias-canon-input" data-group="${gi}" value="${escapeHtml(defaultCanon)}"
+          style="flex:1; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); font-family:'Inter',sans-serif;">
+        <button class="btn secondary alias-apply-btn" data-group="${gi}" style="font-size:11.5px; padding:5px 10px;">Terapkan</button>
+      </div></div>`;
+    });
+    container.innerHTML = html;
+    container.querySelectorAll('.alias-apply-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const gi = btn.getAttribute('data-group');
+        const input = container.querySelector(`.alias-canon-input[data-group="${gi}"]`);
+        const canon = input.value.trim();
+        if(!canon) return;
+        container.querySelectorAll(`.alias-member[data-group="${gi}"]`).forEach(cb => {
+          if(cb.checked) companyAliases[cb.getAttribute('data-name')] = canon;
+        });
+        saveAliases();
+        render();
+      });
+    });
+  }
+
+  const activeEntries = Object.entries(companyAliases);
+  const activeEl = document.getElementById('company-alias-active');
+  if(!activeEntries.length){
+    activeEl.innerHTML = '<p class="note">Belum ada alias yang diterapkan.</p>';
+  }else{
+    let html2 = '<table class="dist"><thead><tr><th>Nama asli</th><th>Alias</th><th></th></tr></thead><tbody>';
+    activeEntries.forEach(([rawName,canon]) => {
+      html2 += `<tr><td>${escapeHtml(rawName)}</td><td>${escapeHtml(canon)}</td>` +
+        `<td><button class="alias-remove-btn" data-name="${escapeHtml(rawName)}" ` +
+        `style="font-size:11px; color:var(--danger); background:none; border:none; cursor:pointer;">Hapus</button></td></tr>`;
+    });
+    html2 += '</tbody></table>';
+    activeEl.innerHTML = html2;
+    activeEl.querySelectorAll('.alias-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        delete companyAliases[btn.getAttribute('data-name')];
+        saveAliases();
+        render();
+      });
+    });
+  }
+}
 /* ================= DATA QUALITY ================= */
 const JUNK_WORDS = ['test','tes','testing','coba','asdf','asd','xxx','xx','qwerty','tidak ada','n/a','na','-','.','...','abc','123','ok','oke'];
 function normalizeEmail(v){ return v ? String(v).trim().toLowerCase() : ''; }
@@ -813,14 +974,14 @@ function isValidEmailFormat(v){
   if(!v) return true;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
 }
-function computeQualityFlags(){
+function computeQualityFlags(list){
   const emailGroups = {};
-  for(const it of items){
+  for(const it of list){
     const email = normalizeEmail(raw(it,'email'));
     if(email) (emailGroups[email] = emailGroups[email]||[]).push(it);
   }
   const flagged = [];
-  for(const it of items){
+  for(const it of list){
     const reasons = [];
     const emailVal = raw(it,'email');
     const nama = raw(it,'nama');
@@ -836,6 +997,7 @@ function computeQualityFlags(){
     if(divisi && isSuspiciousText(divisi)) reasons.push('Isian bagian/divisi tidak wajar');
     if(reasons.length){
       flagged.push({
+        id: it.id,
         nama: nama || '(tanpa nama)',
         email: emailVal || '-',
         reasons,
@@ -902,7 +1064,12 @@ function fmtLabel(v){
 }
 function barChart(canvasId, key, entries, horizontal){
   destroyIf(key);
-  const ctx = document.getElementById(canvasId).getContext('2d');
+  const canvasEl = document.getElementById(canvasId);
+  if(horizontal){
+    const box = canvasEl.closest('.chart-box');
+    if(box) box.style.height = Math.max(160, entries.length*30) + 'px';
+  }
+  const ctx = canvasEl.getContext('2d');
   charts[key] = new Chart(ctx, {
     type:'bar',
     data:{ labels: entries.map(e=>e[0]),
@@ -934,6 +1101,33 @@ function doughnutChart(canvasId, key, entries){
     }
   });
 }
+function pyramidChart(canvasId, key, cross){
+  destroyIf(key);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const maxVal = Math.max(1, ...cross.pria, ...cross.wanita);
+  charts[key] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: cross.ageOrder,
+      datasets:[
+        { label:'Pria', data: cross.pria.map(v=>-v), backgroundColor: PALETTE[0], maxBarThickness:26,
+          datalabels:{ formatter:(v)=>fmtLabel(Math.abs(v)), anchor:'start', align:'start' } },
+        { label:'Wanita', data: cross.wanita, backgroundColor: PALETTE[1], maxBarThickness:26,
+          datalabels:{ formatter: fmtLabel, anchor:'end', align:'end' } }
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } } },
+      scales:{
+        x:{ min:-maxVal*1.15, max:maxVal*1.15, stacked:false,
+            ticks:{ callback:(v)=>Math.abs(v), font:{ size:10.5 } }, grid:{ color:'#eee' } },
+        y:{ stacked:false, ticks:{ font:{ size:11 } } }
+      }
+    }
+  });
+}
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -952,16 +1146,27 @@ function renderFlaggedTable(containerId, flaggedList){
     document.getElementById(containerId).innerHTML = '<p class="note">Tidak ada entri yang menunjukkan indikasi kualitas rendah pada pemeriksaan saat ini.</p>';
     return;
   }
-  let html = '<table class="dist"><thead><tr><th>Nama</th><th>Email</th><th>Alasan</th><th style="text-align:right">Tanggal</th></tr></thead><tbody>';
+  let html = '<table class="dist"><thead><tr><th style="text-align:center;">Kecualikan</th><th>Nama</th><th>Email</th><th>Alasan</th><th style="text-align:right">Tanggal</th></tr></thead><tbody>';
   const shown = flaggedList.slice(0, 50);
   for(const f of shown){
-    html += `<tr><td>${escapeHtml(f.nama)}</td><td>${escapeHtml(f.email)}</td><td>${escapeHtml(f.reasons.join('; '))}</td><td class="n">${f.date||'-'}</td></tr>`;
+    const checked = excludedIds.has(f.id) ? 'checked' : '';
+    html += `<tr><td style="text-align:center;"><input type="checkbox" data-exclude-id="${escapeHtml(f.id)}" ${checked}></td><td>${escapeHtml(f.nama)}</td><td>${escapeHtml(f.email)}</td><td>${escapeHtml(f.reasons.join('; '))}</td><td class="n">${f.date||'-'}</td></tr>`;
   }
   html += '</tbody></table>';
   if(flaggedList.length > shown.length){
     html += `<div class="note">Menampilkan 50 dari ${flaggedList.length} entri yang ditandai.</div>`;
   }
-  document.getElementById(containerId).innerHTML = html;
+  const el = document.getElementById(containerId);
+  el.innerHTML = html;
+  el.querySelectorAll('[data-exclude-id]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = cb.getAttribute('data-exclude-id');
+      if(cb.checked) excludedIds.add(id); else excludedIds.delete(id);
+      saveExcluded();
+      applyFilter();
+      render();
+    });
+  });
 }
 
 function renderGcgRawDiagnostics(){
@@ -1140,12 +1345,13 @@ function render(){
 
   renderAspectAnalytics();
 
-  doughnutChart('chart-internal-eksternal', 'ie', tally('peran_responden', {top:6}));
-  doughnutChart('chart-gender', 'gender', tally('gender', {top:6}));
-  barChart('chart-age', 'age', tallyOrdered('age', FIELD_DEFS.find(f=>f.id==='age').order));
+  const ieEntries = tallyPeranOrdered();
+  barChart('chart-internal-eksternal', 'ie', ieEntries, true);
+  pyramidChart('chart-gender-age', 'genderage', genderAgeCross());
 
   barChart('chart-eksternal-kategori', 'ekat', tally('pangkat_golongan', {top:8}), true);
-  tableFromEntries('tbl-asal-instansi', tally('asal_instansi', {top:10}), ['Perusahaan/Instansi','Responden']);
+  tableFromEntries('tbl-asal-instansi', tallyCompany().slice(0,10), ['Perusahaan/Instansi','Responden']);
+  renderCompanyAliasPanel();
 
   barChart('chart-pendidikan', 'pend', tallyOrdered('pendidikan', FIELD_DEFS.find(f=>f.id==='pendidikan').order), true);
   barChart('chart-bidang', 'bidang', tally('bidang', {top:7}), true);
@@ -1154,9 +1360,9 @@ function render(){
   barChart('chart-lama-menjabat', 'lm', tallyOrdered('lama_menjabat', FIELD_DEFS.find(f=>f.id==='lama_menjabat').order));
   doughnutChart('chart-lokasi', 'lokasi', tally('lokasi', {top:4}));
 
-  const flagged = computeQualityFlags();
+  const flagged = computeQualityFlags(peranFilteredItems);
   document.getElementById('m-flagged').textContent = flagged.length;
-  document.getElementById('m-flagged-pct').innerHTML = (total ? Math.round(flagged.length/total*100) : 0) + '<small>%</small>';
+  document.getElementById('m-flagged-pct').innerHTML = (peranFilteredItems.length ? Math.round(flagged.length/peranFilteredItems.length*100) : 0) + '<small>%</small>';
   barChart('chart-flag-reason', 'flagreason', reasonTally(flagged), true);
   renderFlaggedTable('tbl-flagged', flagged);
 }
