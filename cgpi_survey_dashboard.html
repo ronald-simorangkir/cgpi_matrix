@@ -634,14 +634,16 @@ function renderDiagnostics(){
       : `<tr><td>${def.id}</td><td class="diag-miss">tidak ditemukan</td><td>—</td></tr>`;
   }).join('');
   const missCount = ALL_FIELD_DEFS.length - Object.keys(columnMap).length;
-  const colList = lastListColumns.map(c => `<li>${escapeHtml(c.displayName||'')}</li>`).join('');
+  const colText = lastListColumns
+    .map((c, i) => `${i+1}. ${c.displayName || '(tanpa nama tampilan)'}  [internalName: ${c.name}]`)
+    .join('\n');
   document.getElementById('diag-body').innerHTML =
     `<p><b>${Object.keys(columnMap).length}</b> dari <b>${ALL_FIELD_DEFS.length}</b> pertanyaan berhasil dipetakan ke kolom List "${escapeHtml(listDisplayName)}". ${missCount} tidak ditemukan.</p>
      <details><summary>Tabel pemetaan per pertanyaan</summary>
        <table class="diag"><thead><tr><th>ID internal</th><th>Status</th><th>Nama kolom SharePoint</th></tr></thead><tbody>${rows}</tbody></table>
      </details>
-     <details style="margin-top:8px;"><summary>Semua nama kolom asli di List ini (${lastListColumns.length})</summary>
-       <ul style="columns:2; font-family:monospace; font-size:11px; margin-top:6px;">${colList}</ul>
+     <details style="margin-top:8px;" open><summary>Semua nama kolom asli di List ini (${lastListColumns.length}) — klik di dalam kotak, Ctrl+A lalu Ctrl+C, lalu tempel ke chat</summary>
+       <textarea readonly style="width:100%; height:260px; margin-top:6px; font-family:'Inter',sans-serif; font-size:11.5px; padding:8px; border:1px solid var(--line); box-sizing:border-box;">${colText}</textarea>
      </details>`;
   document.getElementById('diag-panel').style.display = 'block';
 }
