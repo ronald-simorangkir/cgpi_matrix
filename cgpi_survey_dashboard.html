@@ -101,6 +101,11 @@
   }
   table.dist td{padding:6px 4px; border-bottom:1px solid #f0efe8;}
   table.dist td.n{text-align:right; font-variant-numeric:tabular-nums; color:var(--navy); font-weight:600;}
+  table.diag{width:100%; border-collapse:collapse; font-size:11.5px;}
+  table.diag th{text-align:left; font-weight:600; color:var(--muted); border-bottom:1px solid var(--line); padding:4px;}
+  table.diag td{padding:3px 4px; border-bottom:1px solid #f0efe8; font-family:monospace;}
+  .diag-ok{color:#2F6F63;}
+  .diag-miss{color:var(--danger); font-weight:600;}
   .bar-inline{height:6px; background:var(--gold-soft); position:relative; margin-top:3px;}
   .bar-inline i{position:absolute; left:0; top:0; bottom:0; background:var(--navy);}
 
@@ -138,6 +143,11 @@
       <pre id="status-raw"></pre>
     </details>
   </div>
+
+  <details class="tech" id="diag-panel" style="display:none; margin-bottom:22px;">
+    <summary style="font-size:13px; color:var(--muted); cursor:pointer;">Diagnostik pemetaan kolom List (untuk pemeriksaan teknis)</summary>
+    <div id="diag-body" style="margin-top:10px; font-size:12px;"></div>
+  </details>
 
   <div id="loading-line" style="display:none;">Memuat data dari SharePoint…</div>
 
@@ -471,6 +481,7 @@ const ALL_FIELD_DEFS = FIELD_DEFS.concat(flattenAspectDefs());
 /* ================= STATE ================= */
 let account = null, graphToken = null, listId = null, siteId = null, listDisplayName = '';
 let columnMap = {};   // FIELD_DEFS.id -> SharePoint internal field name
+let lastListColumns = null; // raw column list of the chosen SharePoint List, for diagnostics
 let items = [];        // raw list items with .fields and .createdDateTime
 let charts = {};
 
@@ -576,11 +587,34 @@ async function pickList(){
   }
   listId = best.list.id;
   listDisplayName = best.list.displayName;
+  lastListColumns = best.cols;
   columnMap = {};
   for(const def of ALL_FIELD_DEFS){
     const hit = best.cols.find(col => def.match.every(m => (col.displayName||'').toLowerCase().includes(m)));
     if(hit) columnMap[def.id] = hit.name;
   }
+  renderDiagnostics();
+}
+
+function renderDiagnostics(){
+  if(!lastListColumns) return;
+  const rows = ALL_FIELD_DEFS.map(def => {
+    const col = columnMap[def.id];
+    return col
+      ? `<tr><td>${def.id}</td><td class="diag-ok">cocok</td><td>${escapeHtml(col)}</td></tr>`
+      : `<tr><td>${def.id}</td><td class="diag-miss">tidak ditemukan</td><td>—</td></tr>`;
+  }).join('');
+  const missCount = ALL_FIELD_DEFS.length - Object.keys(columnMap).length;
+  const colList = lastListColumns.map(c => `<li>${escapeHtml(c.displayName||'')}</li>`).join('');
+  document.getElementById('diag-body').innerHTML =
+    `<p><b>${Object.keys(columnMap).length}</b> dari <b>${ALL_FIELD_DEFS.length}</b> pertanyaan berhasil dipetakan ke kolom List "${escapeHtml(listDisplayName)}". ${missCount} tidak ditemukan.</p>
+     <details><summary>Tabel pemetaan per pertanyaan</summary>
+       <table class="diag"><thead><tr><th>ID internal</th><th>Status</th><th>Nama kolom SharePoint</th></tr></thead><tbody>${rows}</tbody></table>
+     </details>
+     <details style="margin-top:8px;"><summary>Semua nama kolom asli di List ini (${lastListColumns.length})</summary>
+       <ul style="columns:2; font-family:monospace; font-size:11px; margin-top:6px;">${colList}</ul>
+     </details>`;
+  document.getElementById('diag-panel').style.display = 'block';
 }
 
 async function fetchAllItems(){
