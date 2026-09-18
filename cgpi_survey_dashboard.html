@@ -408,6 +408,44 @@ if(new URLSearchParams(location.search).get('config') === '1'){
   return;
 }
 
+/* Auth popup for the Teams tab case: microsoftTeams.authentication.authenticate()
+   opens THIS SAME page with ?teamsauth=1 as a real top-level window (not an
+   iframe), so MSAL's redirect flow is allowed here even though it's refused
+   inside the tab's own iframe. This window signs the user in, then hands the
+   result back to the tab via notifySuccess/notifyFailure and closes itself. */
+if(new URLSearchParams(location.search).get('teamsauth') === '1'){
+  document.body.innerHTML = '<div style="font-family:Inter,system-ui,sans-serif; padding:60px 20px; text-align:center; color:#0B1F3A; font-size:14px;">Memproses masuk…</div>';
+  const authPopupUrl = location.origin + location.pathname + '?teamsauth=1';
+  (async () => {
+    if(typeof msal === 'undefined' || typeof microsoftTeams === 'undefined'){
+      document.body.innerHTML = '<div style="font-family:Inter,system-ui,sans-serif; padding:60px 20px; text-align:center; color:#AE4430; font-size:14px;">Library gagal dimuat di jendela masuk ini.</div>';
+      return;
+    }
+    try{
+      await microsoftTeams.app.initialize();
+      const msalInstance = new msal.PublicClientApplication({
+        auth:{ clientId:'423fdc02-e076-49c9-9e09-51d417b12401', authority:'https://login.microsoftonline.com/ecf5a6b8-f78b-4874-9e7a-d5763e78ccb7' },
+        cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:true }
+      });
+      await msalInstance.initialize();
+      const result = await msalInstance.handleRedirectPromise();
+      if(result && result.account){
+        microsoftTeams.authentication.notifySuccess('ok');
+        return;
+      }
+      const accounts = msalInstance.getAllAccounts();
+      if(accounts.length){
+        microsoftTeams.authentication.notifySuccess('ok');
+        return;
+      }
+      await msalInstance.loginRedirect({ scopes:['Sites.Read.All'], redirectUri: authPopupUrl });
+    }catch(e){
+      microsoftTeams.authentication.notifyFailure(String(e && e.message || e));
+    }
+  })();
+  return;
+}
+
 /* Fail loudly, not silently. If either library didn't load (blocked file,
    wrong path, missing upload), show it on the page instead of a dead button. */
 function showBootError(msg, detail){
@@ -625,9 +663,20 @@ const msalInstance = new msal.PublicClientApplication({
     authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
     redirectUri: window.location.origin + window.location.pathname
   },
-  cache:{ cacheLocation:'sessionStorage', storeAuthStateInCookie:true }
+  cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:true }
 });
 const msalInitPromise = msalInstance.initialize();
+let inTeamsContext = false;
+async function detectTeams(){
+  if(typeof microsoftTeams === 'undefined') return false;
+  try{
+    await Promise.race([
+      microsoftTeams.app.initialize(),
+      new Promise((_, reject) => setTimeout(reject, 800))
+    ]);
+    return true;
+  }catch(e){ return false; }
+}
 
 /* ================= UI HELPERS ================= */
 function showStatus(msg, isErr, raw){
@@ -686,11 +735,24 @@ async function tryAutoLogin(){
   }
 }
 
-document.getElementById('btn-login').addEventListener('click', () => {
-  document.getElementById('btn-login').textContent = 'Mengarahkan ke Microsoft…';
-  msalInstance.loginRedirect({ scopes: CONFIG.scopes }).catch(e => {
-    showStatus('Gagal memulai proses masuk dengan akun Microsoft.', true, String(e));
-  });
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const btnLogin = document.getElementById('btn-login');
+  if(inTeamsContext){
+    btnLogin.textContent = 'Membuka jendela masuk…';
+    const authPopupUrl = window.location.origin + window.location.pathname + '?teamsauth=1';
+    try{
+      await microsoftTeams.authentication.authenticate({ url: authPopupUrl, width: 600, height: 535 });
+      await tryAutoLogin();
+    }catch(e){
+      btnLogin.textContent = 'Masuk dengan Akun Mandiri';
+      showStatus('Gagal masuk lewat Teams. Coba lagi, atau periksa apakah jendela masuk sempat diblokir.', true, String(e));
+    }
+  }else{
+    btnLogin.textContent = 'Mengarahkan ke Microsoft…';
+    msalInstance.loginRedirect({ scopes: CONFIG.scopes }).catch(e => {
+      showStatus('Gagal memulai proses masuk dengan akun Microsoft.', true, String(e));
+    });
+  }
 });
 document.getElementById('btn-refresh').addEventListener('click', refreshData);
 async function exportToPdf(){
@@ -761,7 +823,7 @@ document.querySelectorAll('.trend-mode-btn').forEach(btn => {
     renderTrendChart();
   });
 });
-tryAutoLogin();
+detectTeams().then(result => { inTeamsContext = result; tryAutoLogin(); });
 
 /* ================= GRAPH ================= */
 async function graphGet(url){
