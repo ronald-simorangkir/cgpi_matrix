@@ -131,16 +131,24 @@
   #app-body.show{display:block;}
   #loading-line{font-size:13px; color:var(--muted); padding:40px 0; text-align:center;}
 @media print{
-  @page{ size:A4 portrait; margin:12mm; }
+  @page{ size:A4 portrait; margin:12mm 12mm 16mm 12mm; }
   body{ background:#fff; }
   .no-print{ display:none !important; }
-  #view-dashboard, #view-dataquality{ display:block !important; }
+  #view-dashboard{ display:block !important; }
+  #view-dataquality{ display:none !important; }
   .panel, .metric-card, .aspect-panel, section, .card-row, .chart-box, table.dist, .bagian-header{
     break-inside:avoid; page-break-inside:avoid;
   }
   .wrap{ max-width:100%; padding:0; }
   a{ color:inherit; text-decoration:none; }
+  .print-only{
+    display:block !important;
+    position:fixed; bottom:0; left:0; right:0;
+    font-family:'Inter',sans-serif; font-size:9px; color:#888;
+    text-align:center; padding-top:4px; border-top:1px solid #ddd;
+  }
 }
+.print-only{ display:none; }
 </style>
 </head>
 <body>
@@ -361,6 +369,8 @@
     <span>Sumber data: Microsoft List "CGPI" — dibaca langsung via Microsoft Graph, tidak disalin atau disimpan di luar tenant.</span>
     <span id="list-name-tag"></span>
   </footer>
+
+  <div id="print-footer" class="print-only"></div>
 
 </div>
 
@@ -693,6 +703,10 @@ async function exportToPdf(){
   filterSelect.value = 'all';
   applyFilter();
   render();
+
+  const now = new Date();
+  const ts = now.toLocaleString('id-ID', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  document.getElementById('print-footer').textContent = `Diekspor dari dashboard pada ${ts}`;
 
   // Beri waktu Chart.js selesai menggambar ulang seluruh grafik sebelum dialog cetak muncul.
   await new Promise(resolve => setTimeout(resolve, 500));
