@@ -130,6 +130,17 @@
   #app-body{display:none;}
   #app-body.show{display:block;}
   #loading-line{font-size:13px; color:var(--muted); padding:40px 0; text-align:center;}
+@media print{
+  @page{ size:A4 portrait; margin:12mm; }
+  body{ background:#fff; }
+  .no-print{ display:none !important; }
+  #view-dashboard, #view-dataquality{ display:block !important; }
+  .panel, .metric-card, .aspect-panel, section, .card-row, .chart-box, table.dist, .bagian-header{
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .wrap{ max-width:100%; padding:0; }
+  a{ color:inherit; text-decoration:none; }
+}
 </style>
 </head>
 <body>
@@ -140,17 +151,18 @@
       <h1>Progres Pengumpulan Angket CGPI 2025</h1>
       <p>Self-Assessment Corporate Governance Perception Index — MCI &amp; Ekosistem</p>
     </div>
-    <div class="auth-block">
+    <div class="auth-block no-print">
       <div id="auth-controls"><button class="btn" id="btn-login">Masuk dengan Akun Mandiri</button></div>
       <div class="sync-line" id="sync-line" style="display:none;">
         <span class="dot off" id="sync-dot"></span>
         <span id="sync-text">Belum tersinkron</span>
         <button class="btn secondary" id="btn-refresh" style="display:none;">Segarkan</button>
+        <button class="btn secondary" id="btn-export-pdf" style="display:none;">Export to PDF</button>
       </div>
     </div>
   </header>
 
-  <div id="filter-bar" style="display:none; margin:14px 0 4px; align-items:center; gap:8px;">
+  <div id="filter-bar" class="no-print" style="display:none; margin:14px 0 4px; align-items:center; gap:8px;">
     <label for="filter-peran" style="font-size:13px; color:var(--muted);">Tampilkan responden:</label>
     <select id="filter-peran" style="font-family:'Inter',sans-serif; font-size:13px; padding:5px 8px; border:1px solid var(--line); background:#fff; color:var(--ink);">
       <option value="all">Semua Responden</option>
@@ -159,7 +171,7 @@
     </select>
   </div>
 
-  <div id="status-panel">
+  <div id="status-panel" class="no-print">
     <div id="status-msg"></div>
     <details class="tech" id="status-tech" style="display:none;">
       <summary>Detail teknis</summary>
@@ -167,16 +179,16 @@
     </details>
   </div>
 
-  <details class="tech" id="diag-panel" style="display:none; margin-bottom:22px;">
+  <details class="tech no-print" id="diag-panel" style="display:none; margin-bottom:22px;">
     <summary style="font-size:13px; color:var(--muted); cursor:pointer;">Diagnostik pemetaan kolom List (untuk pemeriksaan teknis)</summary>
     <div id="diag-body" style="margin-top:10px; font-size:12px;"></div>
   </details>
 
-  <div id="loading-line" style="display:none;">Memuat data dari SharePoint…</div>
+  <div id="loading-line" class="no-print" style="display:none;">Memuat data dari SharePoint…</div>
 
   <div id="app-body">
 
-  <div id="view-nav" style="display:flex; gap:8px; margin-bottom:22px; border-bottom:1px solid var(--line); padding-bottom:10px;">
+  <div id="view-nav" class="no-print" style="display:flex; gap:8px; margin-bottom:22px; border-bottom:1px solid var(--line); padding-bottom:10px;">
     <button class="view-nav-btn active" data-view="dashboard" style="background:var(--navy); color:#fff; border:none; padding:8px 16px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Dashboard</button>
     <button class="view-nav-btn" data-view="dataquality" style="background:transparent; color:var(--navy); border:1px solid var(--navy); padding:8px 16px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Kualitas Data &amp; Alias Perusahaan</button>
   </div>
@@ -205,9 +217,13 @@
       </div>
     </section>
     <section>
-      <h2 class="section-title">Tren Pengumpulan &amp; Proyeksi</h2>
+      <h2 class="section-title">Tren Pengumpulan</h2>
       <div class="panel">
-        <div class="chart-box tall"><canvas id="chart-trend"></canvas></div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-bottom:8px;" class="no-print">
+          <button class="trend-mode-btn active" data-mode="kumulatif" style="background:var(--navy); color:#fff; border:none; padding:5px 12px; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; cursor:pointer;">Kumulatif</button>
+          <button class="trend-mode-btn" data-mode="harian" style="background:transparent; color:var(--navy); border:1px solid var(--navy); padding:5px 12px; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; cursor:pointer;">Harian</button>
+        </div>
+        <div class="chart-box tall" style="padding-right:8px;"><canvas id="chart-trend"></canvas></div>
         <div class="note" id="projection-note"></div>
       </div>
     </section>
@@ -280,8 +296,8 @@
           <div class="lbl">Aspek dengan skor rata-rata terendah</div>
         </div>
       </div>
-      <div id="gcg-range-warning" style="display:none; background:#FBEFE9; border:1px solid var(--danger); color:var(--danger); padding:10px 14px; font-size:12.5px; margin-bottom:14px;"></div>
-      <details id="gcg-raw-diag" style="display:none; margin-bottom:14px; background:#fff; border:1px solid var(--line); padding:10px 14px;">
+      <div id="gcg-range-warning" class="no-print" style="display:none; background:#FBEFE9; border:1px solid var(--danger); color:var(--danger); padding:10px 14px; font-size:12.5px; margin-bottom:14px;"></div>
+      <details id="gcg-raw-diag" class="no-print" style="display:none; margin-bottom:14px; background:#fff; border:1px solid var(--line); padding:10px 14px;">
         <summary style="font-size:12.5px; color:var(--muted); cursor:pointer;">Diagnostik nilai mentah 75 kolom skor GCG (untuk pemeriksaan teknis)</summary>
         <div id="gcg-raw-diag-body" style="margin-top:10px; font-size:11.5px;"></div>
       </details>
@@ -315,7 +331,7 @@
         <div class="panel">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <span style="font-size:12px; color:var(--muted);">Centang "Kecualikan" untuk mengeluarkan entri dari seluruh statistik dan grafik di halaman ini. Perubahan tersimpan otomatis di browser ini.</span>
-            <button class="btn secondary" id="btn-reset-exclude" style="font-size:11px; padding:5px 10px; white-space:nowrap;">Reset semua</button>
+            <button class="btn secondary no-print" id="btn-reset-exclude" style="font-size:11px; padding:5px 10px; white-space:nowrap;">Reset semua</button>
           </div>
           <div id="tbl-flagged"></div>
           <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis. Centang untuk mengecualikan setelah verifikasi manual.</div>
@@ -575,6 +591,8 @@ let peranFilteredItems = []; // allItems minus the peran (internal/eksternal) fi
 let items = [];        // peranFilteredItems minus user-excluded entries; used by every other stat/chart
 let activeFilter = 'all'; // 'all' | 'internal' | 'eksternal'
 let charts = {};
+let trendMode = 'kumulatif'; // 'kumulatif' | 'harian'
+let trendState = { days:[], dayMap:{}, cumSeries:[], target:0 };
 
 function loadJson(key, fallback){
   try{ const v = JSON.parse(localStorage.getItem(key)); return v===null||v===undefined ? fallback : v; }
@@ -624,6 +642,7 @@ function onLoggedIn(){
   document.getElementById('auth-controls').innerHTML =
     `<span style="font-weight:600;color:var(--navy)">${(account && account.name) || 'Masuk'}</span>`;
   document.getElementById('btn-refresh').style.display = 'inline-block';
+  document.getElementById('btn-export-pdf').style.display = 'inline-block';
   runLoad();
   setInterval(refreshData, CONFIG.autoRefreshMs);
 }
@@ -661,6 +680,39 @@ document.getElementById('btn-login').addEventListener('click', () => {
   });
 });
 document.getElementById('btn-refresh').addEventListener('click', refreshData);
+async function exportToPdf(){
+  const btn = document.getElementById('btn-export-pdf');
+  const originalText = btn.textContent;
+  btn.textContent = 'Menyiapkan…';
+  btn.disabled = true;
+
+  const savedFilter = activeFilter;
+  const filterSelect = document.getElementById('filter-peran');
+  const savedSelectValue = filterSelect.value;
+  activeFilter = 'all';
+  filterSelect.value = 'all';
+  applyFilter();
+  render();
+
+  // Beri waktu Chart.js selesai menggambar ulang seluruh grafik sebelum dialog cetak muncul.
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const restore = () => {
+    activeFilter = savedFilter;
+    filterSelect.value = savedSelectValue;
+    applyFilter();
+    render();
+    btn.textContent = originalText;
+    btn.disabled = false;
+    window.onafterprint = null;
+  };
+  window.onafterprint = restore;
+  window.print();
+  // Jaring pengaman kalau afterprint tidak pernah terpicu sama sekali (kasus langka);
+  // dibuat sangat panjang supaya tidak membatalkan state ekspor saat dialog cetak masih terbuka.
+  setTimeout(() => { if(btn.disabled) restore(); }, 120000);
+}
+document.getElementById('btn-export-pdf').addEventListener('click', exportToPdf);
 document.getElementById('btn-reset-exclude').addEventListener('click', () => {
   excludedIds = new Set();
   saveExcluded();
@@ -678,6 +730,18 @@ document.querySelectorAll('.view-nav-btn').forEach(btn => {
       b.style.background = active ? 'var(--navy)' : 'transparent';
       b.style.color = active ? '#fff' : 'var(--navy)';
     });
+  });
+});
+document.querySelectorAll('.trend-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    trendMode = btn.getAttribute('data-mode');
+    document.querySelectorAll('.trend-mode-btn').forEach(b => {
+      const active = b === btn;
+      b.classList.toggle('active', active);
+      b.style.background = active ? 'var(--navy)' : 'transparent';
+      b.style.color = active ? '#fff' : 'var(--navy)';
+    });
+    renderTrendChart();
   });
 });
 tryAutoLogin();
@@ -1188,6 +1252,47 @@ function pyramidChart(canvasId, key, cross, title){
     }
   });
 }
+function renderTrendChart(){
+  const { days, dayMap, cumSeries, target } = trendState;
+  destroyIf('trend');
+  const trendCtx = document.getElementById('chart-trend').getContext('2d');
+  if(trendMode === 'harian'){
+    const dailyVals = days.map(d => dayMap[d]);
+    charts.trend = new Chart(trendCtx, {
+      type:'bar',
+      data:{
+        labels: days,
+        datasets:[{ label:'Responden per hari', data: dailyVals, backgroundColor: PALETTE[0], borderRadius:2, maxBarThickness:26,
+          datalabels:{ formatter: fmtLabel, anchor:'end', align:'top', font:{ size:9.5 } } }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        layout:{ padding:{ top:22, right:16 } },
+        plugins:{ legend:{ display:false }, title: titlePlugin('Tren Pengumpulan') },
+        scales:{ x:{ ticks:{ maxTicksLimit:10, font:{ size:10 } } }, y:{ beginAtZero:true, ticks:{ precision:0 } } }
+      }
+    });
+  }else{
+    charts.trend = new Chart(trendCtx, {
+      type:'line',
+      data:{
+        labels: days,
+        datasets:[
+          { label:'Responden kumulatif', data: cumSeries, borderColor: PALETTE[0], backgroundColor:'transparent', tension:0.15, pointRadius:2,
+            datalabels:{ formatter: fmtLabel, align:'top', offset:4, font:{ size:9.5 }, clamp:true } },
+          { label:'Target ('+target+')', data: days.map(()=>target), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0,
+            datalabels:{ display:false } }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        layout:{ padding:{ top:22, right:34 } },
+        plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 } } }, title: titlePlugin('Tren Pengumpulan') },
+        scales:{ x:{ ticks:{ maxTicksLimit:10, font:{ size:10 } } }, y:{ beginAtZero:true, ticks:{ precision:0 } } }
+      }
+    });
+  }
+}
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -1351,25 +1456,8 @@ function render(){
     noteEl.textContent = 'Belum cukup data harian untuk menghitung proyeksi.';
   }
 
-  destroyIf('trend');
-  const trendCtx = document.getElementById('chart-trend').getContext('2d');
-  charts.trend = new Chart(trendCtx, {
-    type:'line',
-    data:{
-      labels: days,
-      datasets:[
-        { label:'Responden kumulatif', data: cumSeries, borderColor: PALETTE[0], backgroundColor:'transparent', tension:0.15, pointRadius:2,
-          datalabels:{ display: (c) => c.dataIndex === c.dataset.data.length - 1, formatter: fmtLabel, align:'top' } },
-        { label:'Target ('+target+')', data: days.map(()=>target), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0,
-          datalabels:{ display:false } }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 } } }, title: titlePlugin('Tren Kumulatif Responden vs Target') },
-      scales:{ x:{ ticks:{ maxTicksLimit:10, font:{ size:10 } } }, y:{ beginAtZero:true, ticks:{ precision:0 } } }
-    }
-  });
+  trendState = { days, dayMap, cumSeries, target };
+  renderTrendChart();
 
   renderAspectAnalytics();
 
