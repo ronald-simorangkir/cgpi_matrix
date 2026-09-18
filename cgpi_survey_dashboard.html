@@ -277,16 +277,18 @@
     </section>
     <section>
       <h2 class="section-title">Latar Belakang Pekerjaan</h2>
-      <div class="grid-3">
+      <div class="grid-2">
         <div class="panel">
           <div id="tbl-jabatan"></div>
           <div class="note">Pilihan jabatan, seluruh responden</div>
         </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-lama-menjabat"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="chart-box"><canvas id="chart-lokasi"></canvas></div>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="panel">
+            <div class="chart-box" style="height:190px;"><canvas id="chart-lama-menjabat"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="chart-box" style="height:190px;"><canvas id="chart-lokasi"></canvas></div>
+          </div>
         </div>
       </div>
     </section>
@@ -1316,11 +1318,17 @@ function doughnutChart(canvasId, key, entries, title){
     }
   });
 }
-function pyramidChart(canvasId, key, cross, title){
+function pyramidChart(canvasId, key, cross, title, forceHeight){
   destroyIf(key);
   const canvasEl = document.getElementById(canvasId);
   const box = canvasEl.closest('.chart-box');
-  if(box) box.style.height = Math.max(220, cross.ageOrder.length*46) + 'px';
+  const naturalHeight = Math.max(220, cross.ageOrder.length*46);
+  const finalHeight = Math.max(naturalHeight, forceHeight||0);
+  if(box) box.style.height = finalHeight + 'px';
+  // Kalau tingginya diperbesar melebihi kebutuhan alami, buat batang lebih
+  // tebal dan berjarak (bukan cuma menyisakan ruang kosong di bawah).
+  const stretch = finalHeight / naturalHeight;
+  const barThickness = Math.round(Math.min(56, 26 * Math.max(1, stretch * 0.85)));
   const ctx = canvasEl.getContext('2d');
   const rawMax = Math.max(1, ...cross.pria, ...cross.wanita);
   const niceMax = Math.ceil(rawMax * 1.15 / 5) * 5;
@@ -1329,20 +1337,21 @@ function pyramidChart(canvasId, key, cross, title){
     data:{
       labels: cross.ageOrder,
       datasets:[
-        { label:'Pria', data: cross.pria.map(v=>-v), backgroundColor: PALETTE[0], maxBarThickness:26,
+        { label:'Pria', data: cross.pria.map(v=>-v), backgroundColor: PALETTE[0], maxBarThickness:barThickness,
           datalabels:{ formatter:(v)=>fmtLabel(Math.abs(v)), anchor:'start', align:'start' } },
-        { label:'Wanita', data: cross.wanita, backgroundColor: PALETTE[1], maxBarThickness:26,
+        { label:'Wanita', data: cross.wanita, backgroundColor: PALETTE[1], maxBarThickness:barThickness,
           datalabels:{ formatter: fmtLabel, anchor:'end', align:'end' } }
       ]
     },
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
+      categoryPercentage: 0.6, barPercentage: 0.9,
       plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } }, title: titlePlugin(title) },
       scales:{
         x:{ min:-niceMax, max:niceMax, stacked:false,
             ticks:{ callback:(v)=>Math.round(Math.abs(v)), font:{ size:10.5 }, stepSize:Math.max(1,Math.round(niceMax/5)) }, grid:{ color:'#eee' } },
-        y:{ stacked:false, ticks:{ font:{ size:11 } } }
+        y:{ stacked:false, ticks:{ font:{ size:11.5 } } }
       }
     }
   });
@@ -1558,7 +1567,8 @@ function render(){
 
   const ieEntries = tallyPeranOrdered();
   barChart('chart-internal-eksternal', 'ie', ieEntries, true, 'Kategori Responden Berdasarkan Pihak yang Diwakili');
-  pyramidChart('chart-gender-age', 'genderage', genderAgeCross(), 'Sebaran Jenis Kelamin per Kelompok Usia');
+  const ieMatchedHeight = Math.max(160, ieEntries.length*30);
+  pyramidChart('chart-gender-age', 'genderage', genderAgeCross(), 'Sebaran Jenis Kelamin per Kelompok Usia', ieMatchedHeight);
 
   renderCompanyAliasPanel();
   barChart('chart-eksternal-kategori', 'ekat', tally('pangkat_golongan', {top:8}), true, 'Pangkat / Golongan Responden');
