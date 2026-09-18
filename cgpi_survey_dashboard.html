@@ -100,9 +100,9 @@
   }
   .aspect-stats{font-size:12.5px; color:var(--muted); margin-bottom:10px;}
   .aspect-stats b{color:var(--navy);}
-  .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px;}
+  .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:start;}
   @media(max-width:860px){.grid-2{grid-template-columns:1fr;}}
-  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:start;}
   @media(max-width:860px){.grid-3{grid-template-columns:1fr;}}
   .chart-box{position:relative; height:260px;}
   .chart-box.tall{height:320px;}
@@ -176,6 +176,13 @@
 
   <div id="app-body">
 
+  <div id="view-nav" style="display:flex; gap:8px; margin-bottom:22px; border-bottom:1px solid var(--line); padding-bottom:10px;">
+    <button class="view-nav-btn active" data-view="dashboard" style="background:var(--navy); color:#fff; border:none; padding:8px 16px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Dashboard</button>
+    <button class="view-nav-btn" data-view="dataquality" style="background:transparent; color:var(--navy); border:1px solid var(--navy); padding:8px 16px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Kualitas Data &amp; Alias Perusahaan</button>
+  </div>
+
+  <div id="view-dashboard">
+
     <div class="bagian-header"><span class="bagian-num">1</span><span class="bagian-title">Statistik Responden</span></div>
     <section>
       <div class="card-row">
@@ -204,32 +211,6 @@
         <div class="note" id="projection-note"></div>
       </div>
     </section>
-    <section>
-      <h2 class="section-title">Kualitas Data — Entri Perlu Verifikasi</h2>
-      <div class="grid-2">
-        <div class="panel">
-          <div class="card-row" style="grid-template-columns:repeat(2,1fr);">
-            <div class="metric-card">
-              <div class="num" id="m-flagged">—</div>
-              <div class="lbl">Entri dengan indikasi kualitas rendah</div>
-            </div>
-            <div class="metric-card">
-              <div class="num" id="m-flagged-pct">—<small>%</small></div>
-              <div class="lbl">Dari total responden terkumpul</div>
-            </div>
-          </div>
-          <div class="chart-box" style="height:190px; margin-top:14px;"><canvas id="chart-flag-reason"></canvas></div>
-        </div>
-        <div class="panel">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-size:12px; color:var(--muted);">Centang "Kecualikan" untuk mengeluarkan entri dari seluruh statistik dan grafik di halaman ini. Perubahan tersimpan otomatis di browser ini.</span>
-            <button class="btn secondary" id="btn-reset-exclude" style="font-size:11px; padding:5px 10px; white-space:nowrap;">Reset semua</button>
-          </div>
-          <div id="tbl-flagged"></div>
-          <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis. Centang untuk mengecualikan setelah verifikasi manual.</div>
-        </div>
-      </div>
-    </section>
     <div class="bagian-header"><span class="bagian-num">2</span><span class="bagian-title">Demografi Responden</span></div>
     <section>
       <h2 class="section-title">Komposisi Responden</h2>
@@ -241,20 +222,6 @@
         <div class="panel">
           <div class="chart-box" style="height:260px;"><canvas id="chart-gender-age"></canvas></div>
           <div class="note">Sebaran jenis kelamin per kelompok usia</div>
-        </div>
-      </div>
-    </section>
-    <section>
-      <h2 class="section-title">Kelola Alias Nama Perusahaan</h2>
-      <div class="grid-2">
-        <div class="panel">
-          <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Terdeteksi mirip</h3>
-          <div id="company-alias-suggestions"></div>
-        </div>
-        <div class="panel">
-          <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Alias aktif</h3>
-          <div id="company-alias-active"></div>
-          <div class="note">Deteksi berdasarkan kemiripan nama (mengabaikan "PT", "Tbk", "(Persero)", dan tanda baca). Centang varian yang ingin digabung, sesuaikan nama alias, lalu klik Terapkan. Tabel "Perusahaan/Instansi" di bawah otomatis mengikuti alias yang aktif.</div>
         </div>
       </div>
     </section>
@@ -326,6 +293,53 @@
     </section>
 
   </div>
+
+  <div id="view-dataquality" style="display:none;">
+    <h1 style="font-family:'Source Serif 4',Georgia,serif; font-size:22px; font-weight:700; color:var(--navy); margin:8px 0 18px;">Pengaturan Kualitas Data</h1>
+    <section>
+      <h2 class="section-title">Kualitas Data — Entri Perlu Verifikasi</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="card-row" style="grid-template-columns:repeat(2,1fr);">
+            <div class="metric-card">
+              <div class="num" id="m-flagged">—</div>
+              <div class="lbl">Entri dengan indikasi kualitas rendah</div>
+            </div>
+            <div class="metric-card">
+              <div class="num" id="m-flagged-pct">—<small>%</small></div>
+              <div class="lbl">Dari total responden terkumpul</div>
+            </div>
+          </div>
+          <div class="chart-box" style="height:190px; margin-top:14px;"><canvas id="chart-flag-reason"></canvas></div>
+        </div>
+        <div class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; color:var(--muted);">Centang "Kecualikan" untuk mengeluarkan entri dari seluruh statistik dan grafik di halaman ini. Perubahan tersimpan otomatis di browser ini.</span>
+            <button class="btn secondary" id="btn-reset-exclude" style="font-size:11px; padding:5px 10px; white-space:nowrap;">Reset semua</button>
+          </div>
+          <div id="tbl-flagged"></div>
+          <div class="note">Penandaan bersifat indikatif berdasarkan pola isian (duplikasi email, format email tidak valid, isian nama/instansi/divisi tidak wajar), bukan keputusan otomatis. Centang untuk mengecualikan setelah verifikasi manual.</div>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Kelola Alias Nama Perusahaan</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Terdeteksi mirip</h3>
+          <div id="company-alias-suggestions"></div>
+        </div>
+        <div class="panel">
+          <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px;">Alias aktif</h3>
+          <div id="company-alias-active"></div>
+          <div class="note">Deteksi berdasarkan kemiripan nama (mengabaikan "PT", "Tbk", "(Persero)", dan tanda baca). Centang varian yang ingin digabung, sesuaikan nama alias, lalu klik Terapkan. Tabel "Perusahaan/Instansi" di bawah otomatis mengikuti alias yang aktif.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  </div>
+
 
   <footer>
     <span>Sumber data: Microsoft List "CGPI" — dibaca langsung via Microsoft Graph, tidak disalin atau disimpan di luar tenant.</span>
@@ -407,11 +421,12 @@ const CONFIG = {
   tenantId: 'ecf5a6b8-f78b-4874-9e7a-d5763e78ccb7',
   siteHostname: 'ptmandiricapital.sharepoint.com',
   sitePath: '/sites/CGPI',
-  targetRespondents: 186,
+  targetsByFilter: { all: 186, internal: 34, eksternal: 154 },
   deadline: new Date('2026-09-30T23:59:59+07:00'),
   scopes: ['Sites.Read.All'],
   autoRefreshMs: 5 * 60 * 1000
 };
+function currentTarget(){ return CONFIG.targetsByFilter[activeFilter]; }
 
 /* Question-text fragments used to auto-match SharePoint column display names.
    Matching is substring / case-insensitive so minor truncation in the List
@@ -651,6 +666,19 @@ document.getElementById('btn-reset-exclude').addEventListener('click', () => {
   saveExcluded();
   applyFilter();
   render();
+});
+document.querySelectorAll('.view-nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const view = btn.getAttribute('data-view');
+    document.getElementById('view-dashboard').style.display = view === 'dashboard' ? 'block' : 'none';
+    document.getElementById('view-dataquality').style.display = view === 'dataquality' ? 'block' : 'none';
+    document.querySelectorAll('.view-nav-btn').forEach(b => {
+      const active = b === btn;
+      b.classList.toggle('active', active);
+      b.style.background = active ? 'var(--navy)' : 'transparent';
+      b.style.color = active ? '#fff' : 'var(--navy)';
+    });
+  });
 });
 tryAutoLogin();
 
@@ -1084,9 +1112,12 @@ function destroyIf(key){ if(charts[key]){ charts[key].destroy(); delete charts[k
 
 function fmtLabel(v){
   if(v===null || v===undefined) return '';
-  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return Number.isInteger(v) ? String(v) : Math.round(v);
 }
-function barChart(canvasId, key, entries, horizontal){
+function titlePlugin(text){
+  return text ? { display:true, text, font:{ family:"'Source Serif 4',Georgia,serif", size:13, weight:'600' }, color:'#0B1F3A', padding:{ bottom:10 } } : { display:false };
+}
+function barChart(canvasId, key, entries, horizontal, title){
   destroyIf(key);
   const canvasEl = document.getElementById(canvasId);
   if(horizontal){
@@ -1100,16 +1131,16 @@ function barChart(canvasId, key, entries, horizontal){
       datasets:[{ data: entries.map(e=>e[1]), backgroundColor: PALETTE[0], borderRadius:2, maxBarThickness:28 }]},
     options:{
       indexAxis: horizontal ? 'y' : 'x',
-      plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel } },
+      plugins:{ legend:{display:false}, datalabels:{ formatter: fmtLabel }, title: titlePlugin(title) },
       scales:{
-        x:{ grid:{ display: horizontal }, ticks:{ font:{ family:'Inter', size:11 } } },
-        y:{ grid:{ display: !horizontal }, ticks:{ font:{ family:'Inter', size:11 } } }
+        x:{ grid:{ display: horizontal }, ticks:{ font:{ family:'Inter', size:11 }, precision:0 } },
+        y:{ grid:{ display: !horizontal }, ticks:{ font:{ family:'Inter', size:11 }, precision:0 } }
       },
       responsive:true, maintainAspectRatio:false
     }
   });
 }
-function doughnutChart(canvasId, key, entries){
+function doughnutChart(canvasId, key, entries, title){
   destroyIf(key);
   const ctx = document.getElementById(canvasId).getContext('2d');
   charts[key] = new Chart(ctx, {
@@ -1119,16 +1150,21 @@ function doughnutChart(canvasId, key, entries){
     options:{
       plugins:{
         legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } },
-        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{ family:'Inter', size:11, weight:'700' }, formatter: fmtLabel }
+        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{ family:'Inter', size:11, weight:'700' }, formatter: fmtLabel },
+        title: titlePlugin(title)
       },
       responsive:true, maintainAspectRatio:false, cutout:'62%'
     }
   });
 }
-function pyramidChart(canvasId, key, cross){
+function pyramidChart(canvasId, key, cross, title){
   destroyIf(key);
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  const maxVal = Math.max(1, ...cross.pria, ...cross.wanita);
+  const canvasEl = document.getElementById(canvasId);
+  const box = canvasEl.closest('.chart-box');
+  if(box) box.style.height = Math.max(220, cross.ageOrder.length*46) + 'px';
+  const ctx = canvasEl.getContext('2d');
+  const rawMax = Math.max(1, ...cross.pria, ...cross.wanita);
+  const niceMax = Math.ceil(rawMax * 1.15 / 5) * 5;
   charts[key] = new Chart(ctx, {
     type:'bar',
     data:{
@@ -1143,10 +1179,10 @@ function pyramidChart(canvasId, key, cross){
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } } },
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 }, boxWidth:12 } }, title: titlePlugin(title) },
       scales:{
-        x:{ min:-maxVal*1.15, max:maxVal*1.15, stacked:false,
-            ticks:{ callback:(v)=>Math.abs(v), font:{ size:10.5 } }, grid:{ color:'#eee' } },
+        x:{ min:-niceMax, max:niceMax, stacked:false,
+            ticks:{ callback:(v)=>Math.round(Math.abs(v)), font:{ size:10.5 }, stepSize:Math.max(1,Math.round(niceMax/5)) }, grid:{ color:'#eee' } },
         y:{ stacked:false, ticks:{ font:{ size:11 } } }
       }
     }
@@ -1281,8 +1317,9 @@ function renderAspectAnalytics(){
 /* ================= RENDER ================= */
 function render(){
   const total = items.length;
-  const pct = Math.min(100, Math.round(total / CONFIG.targetRespondents * 100));
-  document.getElementById('m-total').innerHTML = total + '<small> / ' + CONFIG.targetRespondents + '</small>';
+  const target = currentTarget();
+  const pct = Math.min(100, Math.round(total / target * 100));
+  document.getElementById('m-total').innerHTML = total + '<small> / ' + target + '</small>';
   document.getElementById('m-pct').innerHTML = pct + '<small>%</small>';
 
   const now = new Date();
@@ -1308,8 +1345,8 @@ function render(){
   const projected = Math.round(total + avgPerDay * daysLeft);
   const noteEl = document.getElementById('projection-note');
   if(days.length){
-    const status = projected >= CONFIG.targetRespondents ? 'sejalan untuk mencapai' : 'berisiko tidak mencapai';
-    noteEl.textContent = `Pada laju rata-rata ${avgPerDay.toFixed(1)} responden/hari (7 hari terakhir), proyeksi total pada 30 September 2026 adalah sekitar ${projected} responden — ${status} target 186.`;
+    const status = projected >= target ? 'sejalan untuk mencapai' : 'berisiko tidak mencapai';
+    noteEl.textContent = `Pada laju rata-rata ${avgPerDay.toFixed(1)} responden/hari (7 hari terakhir), proyeksi total pada 30 September 2026 adalah sekitar ${projected} responden — ${status} target ${target}.`;
   }else{
     noteEl.textContent = 'Belum cukup data harian untuk menghitung proyeksi.';
   }
@@ -1323,38 +1360,38 @@ function render(){
       datasets:[
         { label:'Responden kumulatif', data: cumSeries, borderColor: PALETTE[0], backgroundColor:'transparent', tension:0.15, pointRadius:2,
           datalabels:{ display: (c) => c.dataIndex === c.dataset.data.length - 1, formatter: fmtLabel, align:'top' } },
-        { label:'Target (186)', data: days.map(()=>CONFIG.targetRespondents), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0,
+        { label:'Target ('+target+')', data: days.map(()=>target), borderColor: PALETTE[1], borderDash:[5,4], pointRadius:0,
           datalabels:{ display:false } }
       ]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 } } } },
-      scales:{ x:{ ticks:{ maxTicksLimit:10, font:{ size:10 } } }, y:{ beginAtZero:true } }
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:'Inter', size:11 } } }, title: titlePlugin('Tren Kumulatif Responden vs Target') },
+      scales:{ x:{ ticks:{ maxTicksLimit:10, font:{ size:10 } } }, y:{ beginAtZero:true, ticks:{ precision:0 } } }
     }
   });
 
   renderAspectAnalytics();
 
   const ieEntries = tallyPeranOrdered();
-  barChart('chart-internal-eksternal', 'ie', ieEntries, true);
-  pyramidChart('chart-gender-age', 'genderage', genderAgeCross());
+  barChart('chart-internal-eksternal', 'ie', ieEntries, true, 'Kategori Responden Berdasarkan Pihak yang Diwakili');
+  pyramidChart('chart-gender-age', 'genderage', genderAgeCross(), 'Sebaran Jenis Kelamin per Kelompok Usia');
 
   renderCompanyAliasPanel();
-  barChart('chart-eksternal-kategori', 'ekat', tally('pangkat_golongan', {top:8}), true);
+  barChart('chart-eksternal-kategori', 'ekat', tally('pangkat_golongan', {top:8}), true, 'Pangkat / Golongan Responden');
   tableFromEntries('tbl-asal-instansi', tallyCompany().slice(0,10), ['Perusahaan/Instansi','Responden']);
 
-  barChart('chart-pendidikan', 'pend', tallyOrdered('pendidikan', FIELD_DEFS.find(f=>f.id==='pendidikan').order), true);
-  barChart('chart-bidang', 'bidang', tally('bidang', {top:7}), true);
+  barChart('chart-pendidikan', 'pend', tallyOrdered('pendidikan', FIELD_DEFS.find(f=>f.id==='pendidikan').order), true, 'Tingkat Pendidikan');
+  barChart('chart-bidang', 'bidang', tally('bidang', {top:7}), true, 'Bidang Pendidikan');
 
   tableFromEntries('tbl-jabatan', tally('jabatan', {top:10}), ['Jabatan','Responden']);
-  barChart('chart-lama-menjabat', 'lm', tallyOrdered('lama_menjabat', FIELD_DEFS.find(f=>f.id==='lama_menjabat').order));
-  doughnutChart('chart-lokasi', 'lokasi', tally('lokasi', {top:4}));
+  barChart('chart-lama-menjabat', 'lm', tallyOrdered('lama_menjabat', FIELD_DEFS.find(f=>f.id==='lama_menjabat').order), false, 'Lama Menjabat pada Posisi Saat Ini');
+  doughnutChart('chart-lokasi', 'lokasi', tally('lokasi', {top:4}), 'Lokasi Tempat Bekerja');
 
   const flagged = computeQualityFlags(peranFilteredItems);
   document.getElementById('m-flagged').textContent = flagged.length;
   document.getElementById('m-flagged-pct').innerHTML = (peranFilteredItems.length ? Math.round(flagged.length/peranFilteredItems.length*100) : 0) + '<small>%</small>';
-  barChart('chart-flag-reason', 'flagreason', reasonTally(flagged), true);
+  barChart('chart-flag-reason', 'flagreason', reasonTally(flagged), true, 'Alasan Penandaan Kualitas Data');
   renderFlaggedTable('tbl-flagged', flagged);
 }
 
