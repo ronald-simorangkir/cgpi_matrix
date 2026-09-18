@@ -1524,6 +1524,54 @@ function renderAspectAnalytics(){
 }
 
 /* ================= RENDER ================= */
+function growChartBox(chartKey, boxCanvasId, extraHeight){
+  const box = document.getElementById(boxCanvasId).closest('.chart-box');
+  if(!box || extraHeight <= 4) return;
+  const oldH = box.getBoundingClientRect().height || parseInt(box.style.height,10) || 1;
+  const newH = oldH + extraHeight;
+  box.style.height = newH + 'px';
+  const chart = charts[chartKey];
+  if(!chart) return;
+  const stretch = newH / oldH;
+  chart.data.datasets.forEach(ds => {
+    const base = ds.maxBarThickness || 28;
+    ds.maxBarThickness = Math.round(Math.min(60, base * Math.max(1, stretch * 0.85)));
+  });
+  chart.options.categoryPercentage = 0.6;
+  chart.options.barPercentage = 0.9;
+  chart.resize();
+  chart.update();
+}
+function equalizeLayoutHeights(){
+  requestAnimationFrame(() => {
+    // Pangkat/Golongan (chart) vs Asal Instansi (tabel)
+    const tblAsal = document.getElementById('tbl-asal-instansi');
+    const pangkatCanvas = document.getElementById('chart-eksternal-kategori');
+    if(tblAsal && pangkatCanvas){
+      const diff = tblAsal.closest('.panel').getBoundingClientRect().height - pangkatCanvas.closest('.panel').getBoundingClientRect().height;
+      if(diff > 8) growChartBox('ekat', 'chart-eksternal-kategori', diff);
+    }
+    // Tingkat Pendidikan vs Bidang Pendidikan (chart vs chart, sama-sama bisa tumbuh)
+    const pendCanvas = document.getElementById('chart-pendidikan');
+    const bidangCanvas = document.getElementById('chart-bidang');
+    if(pendCanvas && bidangCanvas){
+      const diff = pendCanvas.closest('.panel').getBoundingClientRect().height - bidangCanvas.closest('.panel').getBoundingClientRect().height;
+      if(diff > 8) growChartBox('bidang', 'chart-bidang', diff);
+      else if(diff < -8) growChartBox('pend', 'chart-pendidikan', -diff);
+    }
+    // Jabatan (tabel) vs kolom tumpukan Lama Menjabat + Lokasi
+    const tblJabatan = document.getElementById('tbl-jabatan');
+    const lmCanvas = document.getElementById('chart-lama-menjabat');
+    if(tblJabatan && lmCanvas){
+      const stackCol = lmCanvas.closest('.panel').parentElement;
+      const diff = tblJabatan.closest('.panel').getBoundingClientRect().height - stackCol.getBoundingClientRect().height;
+      if(diff > 8){
+        growChartBox('lm', 'chart-lama-menjabat', Math.round(diff/2));
+        growChartBox('lokasi', 'chart-lokasi', Math.round(diff/2));
+      }
+    }
+  });
+}
 function render(){
   const total = items.length;
   const target = currentTarget();
@@ -1586,6 +1634,8 @@ function render(){
   document.getElementById('m-flagged-pct').innerHTML = (peranFilteredItems.length ? Math.round(flagged.length/peranFilteredItems.length*100) : 0) + '<small>%</small>';
   barChart('chart-flag-reason', 'flagreason', reasonTally(flagged), true, 'Alasan Penandaan Kualitas Data');
   renderFlaggedTable('tbl-flagged', flagged);
+
+  equalizeLayoutHeights();
 }
 
 })();
