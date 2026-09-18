@@ -633,6 +633,21 @@ function flattenAspectDefs(){
 }
 const ALL_FIELD_DEFS = FIELD_DEFS.concat(flattenAspectDefs());
 
+// Pemetaan resmi: ID indikator -> nomor kolom List (1-75), dikonfirmasi dari
+// Mapping_Aspek_GCG.xlsx. Bukan berurutan per blok aspek.
+const GCG_COLUMN_MAP = {
+  kp_01:1, kp_02:3, kp_03:6, kp_04:12, kp_05:14, kp_06:17, kp_07:20, kp_08:21, kp_09:22, kp_10:26,
+  kp_11:31, kp_12:33, kp_13:35, kp_14:36, kp_15:40, kp_16:42, kp_17:50, kp_18:62,
+  ik_01:4, ik_02:7, ik_03:10, ik_04:11, ik_05:15, ik_06:16, ik_07:19, ik_08:46, ik_09:48, ik_10:52,
+  ik_11:54, ik_12:57, ik_13:58, ik_14:60, ik_15:63, ik_16:64, ik_17:71, ik_18:72, ik_19:73,
+  so_01:8, so_02:27, so_03:29, so_04:30, so_05:34, so_06:44, so_07:45, so_08:47, so_09:55, so_10:56,
+  so_11:59, so_12:68,
+  ta_01:2, ta_02:9, ta_03:13, ta_04:25, ta_05:32, ta_06:38, ta_07:39, ta_08:43, ta_09:49, ta_10:66,
+  ta_11:70, ta_12:74, ta_13:75,
+  ke_01:5, ke_02:18, ke_03:23, ke_04:24, ke_05:28, ke_06:37, ke_07:41, ke_08:51, ke_09:53, ke_10:61,
+  ke_11:65, ke_12:67, ke_13:69
+};
+
 /* ================= STATE ================= */
 let account = null, graphToken = null, listId = null, siteId = null, listDisplayName = '';
 let columnMap = {};   // FIELD_DEFS.id -> SharePoint internal field name
@@ -874,15 +889,16 @@ async function pickList(){
     const hit = best.cols.find(col => defMatchesColumn(def, col));
     if(hit) columnMap[def.id] = hit.name;
   }
-  // The 75 GCG rating questions carry no text at all in this List, just bare
-  // sequential numbers ("1".."75"). Map them by numeric order directly onto
-  // the 5 aspects in their documented sequence (18+19+12+13+13 = 75).
-  const numericCols = best.cols.filter(c => /^\d+$/.test((c.displayName||'').trim()));
-  numericCols.sort((a,b) => parseInt(a.displayName,10) - parseInt(b.displayName,10));
-  if(numericCols.length === 75){
-    const flatItems = ASPECTS.flatMap(a => a.items);
-    flatItems.forEach((def, i) => { columnMap[def.id] = numericCols[i].name; });
-  }
+  // Ke-75 kolom skor GCG tersimpan sebagai nomor polos ("1".."75") tanpa teks
+  // pertanyaan sama sekali, dan urutannya TIDAK berbentuk blok per aspek.
+  // Pemetaan ini dikonfirmasi langsung dari List sesungguhnya (Mapping_Aspek_GCG.xlsx).
+  const numericColsByNum = {};
+  best.cols.filter(c => /^\d+$/.test((c.displayName||'').trim()))
+    .forEach(c => { numericColsByNum[parseInt(c.displayName,10)] = c; });
+  Object.keys(GCG_COLUMN_MAP).forEach(id => {
+    const hit = numericColsByNum[GCG_COLUMN_MAP[id]];
+    if(hit) columnMap[id] = hit.name;
+  });
   renderDiagnostics();
 }
 function defMatchesColumn(def, col){
