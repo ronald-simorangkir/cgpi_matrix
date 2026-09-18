@@ -10,6 +10,7 @@
 <script src="./msal-browser.min.js"></script>
 <script src="./chart.umd.min.js"></script>
 <script src="./chartjs-plugin-datalabels.min.js"></script>
+<script src="./MicrosoftTeams.min.js"></script>
 <style>
   :root{
     --navy:#0B1F3A;
@@ -335,6 +336,34 @@
 
 <script>
 (function(){
+
+/* Teams "configurableTabs" flow: when Teams is adding this as a channel tab
+   (not a plain Website tab), it first loads this same URL with ?config=1 in
+   an iframe, expects Teams JS SDK calls to register the tab, and never shows
+   the actual dashboard on that pass. Handle that here, separately from and
+   before the normal dashboard boot below. */
+if(new URLSearchParams(location.search).get('config') === '1'){
+  document.body.innerHTML = '<div style="font-family:Inter,system-ui,sans-serif; padding:60px 20px; text-align:center; color:#0B1F3A; font-size:14px;">Menyiapkan tab…</div>';
+  if(typeof microsoftTeams === 'undefined'){
+    document.body.innerHTML = '<div style="font-family:Inter,system-ui,sans-serif; padding:60px 20px; text-align:center; color:#AE4430; font-size:14px;">Gagal memuat Teams JS SDK (MicrosoftTeams.min.js). Pastikan file itu ter-upload di folder yang sama dengan halaman ini.</div>';
+    return;
+  }
+  const baseUrl = location.origin + location.pathname;
+  microsoftTeams.app.initialize().then(() => {
+    microsoftTeams.pages.config.setValidityState(true);
+    microsoftTeams.pages.config.registerOnSaveHandler((saveEvent) => {
+      microsoftTeams.pages.config.setConfig({
+        entityId: 'cgpi-survey-dashboard',
+        contentUrl: baseUrl,
+        websiteUrl: baseUrl,
+        suggestedDisplayName: 'Progres Angket CGPI'
+      }).then(() => saveEvent.notifySuccess());
+    });
+  }).catch((e) => {
+    document.body.innerHTML = '<div style="font-family:Inter,system-ui,sans-serif; padding:60px 20px; text-align:center; color:#AE4430; font-size:14px;">Gagal menginisialisasi Teams: ' + String(e) + '</div>';
+  });
+  return;
+}
 
 /* Fail loudly, not silently. If either library didn't load (blocked file,
    wrong path, missing upload), show it on the page instead of a dead button. */
